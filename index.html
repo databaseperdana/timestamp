@@ -297,6 +297,43 @@
                     </div>
                 </div>
 
+                <!-- Overlay Pratinjau Hasil Jepretan Sebelum Disimpan (Muncul setelah tombol Jepret ditekan) -->
+                <div id="capture-preview-modal" class="hidden absolute inset-0 z-30 bg-slate-950/95 backdrop-blur-md flex flex-col justify-between p-3 sm:p-5">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold">
+                                <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                                Pratinjau Hasil Jepretan
+                            </span>
+                            <span id="capture-preview-res" class="text-[11px] font-mono text-slate-400 hidden sm:inline"></span>
+                        </div>
+                        <button type="button" id="btn-preview-retake-top" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition" title="Tutup & Foto Ulang">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+
+                    <div class="flex-1 my-2.5 flex items-center justify-center overflow-hidden">
+                        <img id="capture-preview-img" src="" alt="Pratinjau Hasil Jepretan" class="max-w-full max-h-[54vh] sm:max-h-[60vh] w-auto h-auto rounded-xl shadow-2xl border border-slate-700/80 object-contain">
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 sm:gap-3 pt-1">
+                        <button type="button" id="btn-preview-retake" class="py-2.5 px-2 sm:px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold border border-slate-700 flex items-center justify-center gap-1.5 transition active:scale-95">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4 text-amber-400 shrink-0"></i>
+                            <span>Foto Ulang</span>
+                        </button>
+
+                        <button type="button" id="btn-preview-edit" class="py-2.5 px-2 sm:px-3 rounded-xl bg-blue-600/25 hover:bg-blue-600/35 text-blue-300 text-xs sm:text-sm font-semibold border border-blue-500/40 flex items-center justify-center gap-1.5 transition active:scale-95">
+                            <i data-lucide="sliders-horizontal" class="w-4 h-4 text-blue-400 shrink-0"></i>
+                            <span>Edit Teks/Peta</span>
+                        </button>
+
+                        <button type="button" id="btn-preview-save" class="py-2.5 px-2 sm:px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-1.5 transition active:scale-95">
+                            <i data-lucide="download" class="w-4 h-4 shrink-0"></i>
+                            <span>Simpan Foto</span>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Tombol Upload Cepat di Sudut Atas (Mode Editor) -->
                 <div id="quick-upload-badge" class="absolute top-3 right-3 opacity-85 group-hover:opacity-100 transition">
                     <label for="file-input" class="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-xs font-medium text-slate-200 border border-slate-700 shadow-lg backdrop-blur">
@@ -317,8 +354,8 @@
                 </div>
                 <div class="flex items-center gap-3">
                     <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs text-slate-300">
-                        <input type="checkbox" id="toggle-auto-download-capture" checked class="rounded bg-slate-800 border-slate-600 text-emerald-500 focus:ring-0">
-                        <span>Otomatis simpan file saat jepret</span>
+                        <input type="checkbox" id="toggle-auto-download-capture" class="rounded bg-slate-800 border-slate-600 text-emerald-500 focus:ring-0">
+                        <span>Langsung unduh otomatis tanpa pratinjau dulu</span>
                     </label>
                 </div>
             </div>
@@ -780,6 +817,7 @@
 
         // Switcher Mode Utama: 'editor' vs 'camera'
         window.setAppMode = async function(mode) {
+            closeCapturePreviewModal();
             if (state.appMode === mode && (mode === 'editor' || state.cameraStream)) return;
             state.appMode = mode;
 
@@ -1700,7 +1738,16 @@
             liveRafId = requestAnimationFrame(renderFrame);
         }
 
-        // Jepret Foto dari Kamera Live (Menyertakan Rasio 9:16 / 3:4, Zoom & Lensa Aktif!)
+        // State sementara untuk hasil jepretan yang sedang dipratinjau
+        let pendingCaptureData = null;
+
+        function closeCapturePreviewModal() {
+            const modal = document.getElementById('capture-preview-modal');
+            if (modal) modal.classList.add('hidden');
+            pendingCaptureData = null;
+        }
+
+        // Jepret Foto dari Kamera Live -> Tampilkan Pratinjau Dulu Baru Save
         function captureLivePhoto() {
             if (state.appMode !== 'camera' || !state.cameraStream) return;
 
@@ -1718,6 +1765,7 @@
             const stampName = `CAM_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
             state.fileName = stampName;
 
+            // 1. Tangkap foto mentah (tanpa teks timestamp) agar tetap bisa diedit ulang jika perlu
             const rawCanvas = document.createElement('canvas');
             const vw = videoEl.videoWidth || canvas.width;
             const vh = videoEl.videoHeight || canvas.height;
@@ -1727,27 +1775,52 @@
             const rctx = rawCanvas.getContext('2d');
             drawZoomedVideoFrame(rctx, vw, vh);
 
+            const rawDataUrl = rawCanvas.toDataURL('image/jpeg', 0.96);
+            // 2. Tangkap foto final lengkap dengan overlay timestamp & mini-map dari canvas utama
+            const stampedDataUrl = canvas.toDataURL(format, quality);
+
+            pendingCaptureData = {
+                rawDataUrl,
+                stampedDataUrl,
+                fileName: `${stampName}.${ext}`,
+                baseName: stampName,
+                width: aspectCrop.outW,
+                height: aspectCrop.outH
+            };
+
+            // Jika user sengaja mencentang "Langsung unduh otomatis tanpa pratinjau dulu"
             if (document.getElementById('toggle-auto-download-capture').checked) {
                 try {
-                    const stampedUrl = canvas.toDataURL(format, quality);
                     const link = document.createElement('a');
-                    link.download = `${stampName}.${ext}`;
-                    link.href = stampedUrl;
+                    link.download = pendingCaptureData.fileName;
+                    link.href = stampedDataUrl;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
                 } catch (err) {
                     console.warn('Auto-download error:', err);
                 }
+                const capturedImg = new Image();
+                capturedImg.onload = () => {
+                    state.image = capturedImg;
+                    setAppMode('editor');
+                    showToast(`Foto dijepret & langsung tersimpan (${aspectCrop.outW}×${aspectCrop.outH} px)!`, 'success');
+                };
+                capturedImg.src = rawDataUrl;
+                return;
             }
 
-            const capturedImg = new Image();
-            capturedImg.onload = () => {
-                state.image = capturedImg;
-                setAppMode('editor');
-                showToast(`Foto berhasil dijepret (${vw}×${vh} px, Zoom ${state.zoomLevel.toFixed(1)}x)!`, 'success');
-            };
-            capturedImg.src = rawCanvas.toDataURL('image/jpeg', 0.96);
+            // Default: Tampilkan modal pratinjau terlebih dahulu sebelum user memilih Simpan / Foto Ulang / Edit
+            const previewImgEl = document.getElementById('capture-preview-img');
+            const previewResEl = document.getElementById('capture-preview-res');
+            const modalEl = document.getElementById('capture-preview-modal');
+
+            previewImgEl.src = stampedDataUrl;
+            if (previewResEl) {
+                previewResEl.textContent = `${aspectCrop.outW} × ${aspectCrop.outH} px`;
+            }
+            modalEl.classList.remove('hidden');
+            lucide.createIcons();
         }
 
         // Fitur Reverse Geocoding Indonesia: Otomatis Isi Jalan, Kelurahan/Desa, Kecamatan, Kabupaten & Provinsi dari Koordinat
@@ -1976,6 +2049,54 @@
             // Kontrol Kamera Realtime (Ganti Lensa & Zoom)
             document.getElementById('btn-capture-photo').addEventListener('click', captureLivePhoto);
             document.getElementById('btn-shutter-circle').addEventListener('click', captureLivePhoto);
+
+            // Tombol pada Modal Pratinjau Hasil Jepretan
+            const handleRetake = () => {
+                closeCapturePreviewModal();
+                showToast('Siap memotret ulang.', 'info');
+            };
+            document.getElementById('btn-preview-retake').addEventListener('click', handleRetake);
+            document.getElementById('btn-preview-retake-top').addEventListener('click', handleRetake);
+
+            document.getElementById('btn-preview-edit').addEventListener('click', () => {
+                if (!pendingCaptureData) return;
+                const data = pendingCaptureData;
+                const capturedImg = new Image();
+                capturedImg.onload = () => {
+                    state.image = capturedImg;
+                    state.fileName = data.baseName;
+                    closeCapturePreviewModal();
+                    setAppMode('editor');
+                    showToast('Foto dimuat ke Editor. Silakan ubah teks/tikor lalu klik Simpan HD.', 'info');
+                };
+                capturedImg.src = data.rawDataUrl;
+            });
+
+            document.getElementById('btn-preview-save').addEventListener('click', () => {
+                if (!pendingCaptureData) return;
+                const data = pendingCaptureData;
+                try {
+                    const link = document.createElement('a');
+                    link.download = data.fileName;
+                    link.href = data.stampedDataUrl;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } catch (err) {
+                    showToast('Gagal menyimpan gambar.', 'error');
+                    return;
+                }
+
+                const capturedImg = new Image();
+                capturedImg.onload = () => {
+                    state.image = capturedImg;
+                    state.fileName = data.baseName;
+                    closeCapturePreviewModal();
+                    setAppMode('editor');
+                    showToast(`Foto berhasil disimpan (${data.width}×${data.height} px)!`, 'success');
+                };
+                capturedImg.src = data.rawDataUrl;
+            });
 
             document.getElementById('btn-cycle-lens').addEventListener('click', cycleCameraLens);
             document.getElementById('btn-float-cycle-lens').addEventListener('click', cycleCameraLens);
