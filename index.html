@@ -112,7 +112,7 @@
                             by perdana
                         </span>
                     </div>
-                    <p class="text-[11px] text-slate-400 mt-1 hidden md:block">TIMESTAMP PLN</p>
+                    <p class="text-[11px] text-slate-400 mt-1 hidden md:block">ABADIKAN WAKTU KERJA MU!!!</p>
                 </div>
             </div>
 
@@ -754,6 +754,7 @@
             hwZoomMax: 1.0,
             hasHardwareZoom: false,
             torchOn: false,
+            focusReticle: null, // { nx, ny, time, modeLabel }
             liveClockTimer: null,
             geoWatchId: null,
             lastReverseGeoCoords: null
@@ -834,6 +835,7 @@
                 cameraToolbar.classList.remove('hidden');
                 liveBadge.classList.remove('hidden');
                 shutterWrap.classList.remove('hidden');
+                canvas.classList.add('cursor-crosshair');
                 quickUpload.classList.add('hidden');
 
                 await startLiveCamera();
@@ -843,6 +845,7 @@
                 cameraToolbar.classList.add('hidden');
                 liveBadge.classList.add('hidden');
                 shutterWrap.classList.add('hidden');
+                canvas.classList.remove('cursor-crosshair');
                 document.getElementById('camera-zoom-bar').classList.add('hidden');
                 quickUpload.classList.remove('hidden');
 
@@ -1690,6 +1693,133 @@
             }
         }
 
+        // Gambar Indikator Kotak Fokus Kamera saat layar disentuh/diklik
+        function drawCameraFocusReticle(w, h) {
+            if (!state.focusReticle) return;
+            const elapsed = performance.now() - state.focusReticle.time;
+            const duration = 1800; // tampil selama 1.8 detik
+            if (elapsed > duration) {
+                state.focusReticle = null;
+                return;
+            }
+
+            const alpha = elapsed > 1300 ? Math.max(0, 1 - (elapsed - 1300) / 500) : 1;
+            const pulse = elapsed < 180 ? (1.28 - (elapsed / 180) * 0.28) : 1.0;
+
+            const cx = state.focusReticle.nx * w;
+            const cy = state.focusReticle.ny * h;
+            const boxSize = Math.round(Math.min(w, h) * 0.14 * pulse);
+            const half = boxSize / 2;
+            const cornerLen = Math.round(boxSize * 0.26);
+
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.strokeStyle = '#facc15'; // kuning fokus kamera standar
+            ctx.lineWidth = Math.max(2, Math.round(Math.min(w, h) * 0.0045));
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+            ctx.shadowBlur = 6;
+
+            // Gambar 4 sudut kotak fokus
+            ctx.beginPath();
+            // Kiri atas
+            ctx.moveTo(cx - half, cy - half + cornerLen);
+            ctx.lineTo(cx - half, cy - half);
+            ctx.lineTo(cx - half + cornerLen, cy - half);
+            // Kanan atas
+            ctx.moveTo(cx + half - cornerLen, cy - half);
+            ctx.lineTo(cx + half, cy - half);
+            ctx.lineTo(cx + half, cy - half + cornerLen);
+            // Kanan bawah
+            ctx.moveTo(cx + half, cy + half - cornerLen);
+            ctx.lineTo(cx + half, cy + half);
+            ctx.lineTo(cx + half - cornerLen, cy + half);
+            // Kiri bawah
+            ctx.moveTo(cx - half + cornerLen, cy + half);
+            ctx.lineTo(cx - half, cy + half);
+            ctx.lineTo(cx - half, cy + half - cornerLen);
+            ctx.stroke();
+
+            // Tanda plus (+) halus di tengah reticle
+            const cross = Math.round(boxSize * 0.1);
+            ctx.beginPath();
+            ctx.moveTo(cx - cross, cy);
+            ctx.lineTo(cx + cross, cy);
+            ctx.moveTo(cx, cy - cross);
+            ctx.lineTo(cx, cy + cross);
+            ctx.stroke();
+
+            // Label kecil status fokus di bawah kotak
+            const fontSize = Math.max(11, Math.round(Math.min(w, h) * 0.022));
+            ctx.font = `600 ${fontSize}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillStyle = '#facc15';
+            ctx.fillText(state.focusReticle.modeLabel || 'AF', cx, cy + half + 6);
+            ctx.restore();
+        }
+
+        // Fungsi Tap-to-Focus pada titik layar yang disentuh/diklik
+        async function triggerTapToFocus(clientX, clientY) {
+            if (state.appMode !== 'camera' || !state.cameraStream) return;
+            const rect = canvas.getBoundingClientRect();
+            if (!rect.width || !rect.height) return;
+
+            const nx = Math.max(0.05, Math.min(0.95, (clientX - rect.left) / rect.width));
+            const ny = Math.max(0.05, Math.min(0.95, (clientY - rect.top) / rect.height));
+
+            // Jika kamera depan dicerminkan secara horizontal, sesuaikan koordinat titik minat sensor
+            const isFront = state.currentLensRole === 'front' || (state.facingMode === 'user' && !state.selectedDeviceId);
+            const sensorX = isFront ? (1 - nx) : nx;
+            const sensorY = ny;
+
+            let modeLabel = 'FOKUS AF';
+            const track = state.cameraStream.getVideoTracks()[0];
+
+            if (track && track.getCapabilities && track.applyConstraints) {
+                try {
+                    const caps = track.getCapabilities();
+                    const advancedConstraints = [];
+
+                    if (caps.pointsOfInterest) {
+                        advancedConstraints.push({ pointsOfInterest: [{ x: sensorX, y: sensorY }] });
+                    }
+                    if (Array.isArray(caps.focusMode)) {
+                        if (caps.focusMode.includes('single-shot')) {
+                            advancedConstraints.push({ focusMode: 'single-shot' });
+                        } else if (caps.focusMode.includes('continuous')) {
+                            advancedConstraints.push({ focusMode: 'continuous' });
+                        }
+                    }
+                    if (Array.isArray(caps.exposureMode) && caps.exposureMode.includes('continuous')) {
+                        advancedConstraints.push({ exposureMode: 'continuous' });
+                    }
+
+                    if (advancedConstraints.length > 0) {
+                        await track.applyConstraints({ advanced: advancedConstraints });
+                        modeLabel = 'AF TERKUNCI';
+                        // Kembalikan ke continuous AF setelah 2.5 detik agar tetap responsif jika kamera digerakkan
+                        if (Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) {
+                            setTimeout(() => {
+                                if (state.cameraStream && state.appMode === 'camera') {
+                                    track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+                                }
+                            }, 2500);
+                        }
+                    }
+                } catch (err) {
+                    // Tetap tampilkan reticle visual meskipun browser membatasi pointsOfInterest
+                    modeLabel = 'FOKUS LAYAR';
+                }
+            }
+
+            state.focusReticle = {
+                nx,
+                ny,
+                time: performance.now(),
+                modeLabel
+            };
+        }
+
         // Gambar frame video ke target context dengan memperhitungkan Rasio Aspek (9:16 / 3:4), Digital Zoom Crop & Mirror kamera depan
         function drawZoomedVideoFrame(targetCtx, vw, vh) {
             const aspectCrop = computeAspectCrop(vw, vh, state.aspectRatio);
@@ -1728,6 +1858,9 @@
                     }
 
                     drawZoomedVideoFrame(ctx, vw, vh);
+
+                    // Gambar Indikator Kotak Fokus (Tap-to-Focus Reticle) di atas viewfinder jika aktif
+                    drawCameraFocusReticle(aspectCrop.outW, aspectCrop.outH);
 
                     // Gambar Timestamp & Mini-Map Esri di atas frame video secara realtime
                     drawTimestampOverlay(aspectCrop.outW, aspectCrop.outH);
@@ -2147,6 +2280,13 @@
             document.getElementById('input-camera-zoom').addEventListener('input', (e) => {
                 const z = parseFloat(e.target.value);
                 applyCameraZoom(z, false);
+            });
+
+            // Tap / Klik 1 Jari pada Layar Kamera untuk Fokus (Tap-to-Focus)
+            canvas.addEventListener('click', (e) => {
+                if (state.appMode === 'camera') {
+                    triggerTapToFocus(e.clientX, e.clientY);
+                }
             });
 
             // Pinch-to-Zoom 2 Jari di Layar Preview Kamera
