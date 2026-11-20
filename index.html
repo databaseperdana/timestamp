@@ -2,7 +2,7 @@
 <html lang="id" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Timestamp Photo Editor & Live Camera - by Perdana</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -96,49 +96,49 @@
     <!-- Toast Notification Container (Pengganti alert) -->
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
-    <!-- Header Dark Navy dengan Watermark Halus 'by perdana' -->
+    <!-- Header Dark Navy Responsif HP & Desktop dengan Watermark Halus 'by perdana' -->
     <header class="bg-[#0a1128]/95 backdrop-blur-md border-b border-slate-800/90 sticky top-0 z-30 shadow-md">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-blue-600/20 border border-blue-400/20 shrink-0">
-                    <i data-lucide="camera" class="w-5 h-5 text-white"></i>
+        <div class="max-w-7xl mx-auto px-2.5 sm:px-6 py-2 sm:h-16 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-blue-600/20 border border-blue-400/20 shrink-0">
+                    <i data-lucide="camera" class="w-4 h-4 sm:w-5 sm:h-5 text-white"></i>
                 </div>
-                <div>
-                    <div class="flex items-baseline gap-2">
-                        <h1 class="font-bold text-base sm:text-lg tracking-tight text-white leading-none">
-                            Timestamp<span class="text-blue-400">Camera</span> Pro
+                <div class="truncate">
+                    <div class="flex items-baseline gap-1.5">
+                        <h1 class="font-bold text-sm sm:text-lg tracking-tight text-white leading-none truncate">
+                            Timestamp<span class="text-blue-400">Cam</span>
                         </h1>
-                        <span class="text-[11px] font-medium tracking-wider text-slate-400/75 select-none italic">
+                        <span class="text-[10px] sm:text-[11px] font-medium tracking-wider text-slate-400/75 select-none italic shrink-0">
                             by perdana
                         </span>
                     </div>
-                    <p class="text-[11px] text-slate-400 mt-1 hidden sm:block">Kamera Realtime, Editor Tikor, Alamat & Mini-Map Esri QGIS</p>
+                    <p class="text-[11px] text-slate-400 mt-1 hidden md:block">TIMESTAMP PLN</p>
                 </div>
             </div>
 
             <!-- Menu Mode & Aksi Cepat -->
-            <div class="flex items-center gap-2 sm:gap-2.5">
+            <div class="flex items-center gap-1.5 sm:gap-2.5 ml-auto">
                 <!-- Switcher Mode: Editor Foto vs Kamera Realtime -->
-                <div class="bg-slate-900/90 p-1 rounded-xl border border-slate-700/80 flex items-center gap-1">
-                    <button type="button" id="mode-btn-editor" onclick="setAppMode('editor')" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 bg-blue-600 text-white shadow transition">
+                <div class="bg-slate-900/90 p-0.5 sm:p-1 rounded-xl border border-slate-700/80 flex items-center gap-0.5 sm:gap-1">
+                    <button type="button" id="mode-btn-editor" onclick="setAppMode('editor')" class="px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center gap-1 sm:gap-1.5 bg-blue-600 text-white shadow transition">
                         <i data-lucide="image" class="w-3.5 h-3.5"></i>
-                        <span>Editor Foto</span>
+                        <span>Editor</span>
                     </button>
-                    <button type="button" id="mode-btn-camera" onclick="setAppMode('camera')" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-800 transition">
+                    <button type="button" id="mode-btn-camera" onclick="setAppMode('camera')" class="px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center gap-1 sm:gap-1.5 text-slate-300 hover:text-white hover:bg-slate-800 transition">
                         <i data-lucide="video" class="w-3.5 h-3.5 text-emerald-400"></i>
-                        <span>Kamera Live</span>
+                        <span>Kamera</span>
                     </button>
                 </div>
 
-                <label for="file-input" class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-medium border border-slate-700 transition active:scale-95" title="Unggah Foto dari Galeri">
+                <label for="file-input" class="cursor-pointer inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition active:scale-95" title="Unggah Foto dari Galeri">
                     <i data-lucide="image-plus" class="w-4 h-4 text-blue-400"></i>
                     <span class="hidden md:inline">Upload</span>
                 </label>
                 <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp" class="hidden">
 
-                <button id="btn-download" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-blue-600/25 transition active:scale-95">
+                <button id="btn-download" class="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-blue-600/25 transition active:scale-95" title="Simpan Foto HD">
                     <i data-lucide="download" class="w-4 h-4"></i>
-                    <span class="hidden sm:inline">Download HD</span>
+                    <span class="hidden sm:inline">Simpan HD</span>
                 </button>
             </div>
         </div>
@@ -149,26 +149,35 @@
         
         <!-- Kolom Kiri: Area Preview Canvas / Kamera Live (7 kolom di desktop) -->
         <div class="lg:col-span-7 flex flex-col gap-3">
-            <!-- Bar Info Resolusi, Status Kamera & Peta Esri -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
-                <div class="flex items-center gap-2 flex-wrap">
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 font-mono" id="resolution-badge">
-                        <i data-lucide="maximize" class="w-3.5 h-3.5 text-blue-400"></i>
-                        1280 × 960 px
+            <!-- Bar Info Resolusi, Rasio Foto (9:16 / 3:4 / Asli) & Peta Esri -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800 text-slate-200 font-mono text-[11px]" id="resolution-badge">
+                        <i data-lucide="maximize" class="w-3 h-3 text-blue-400"></i>
+                        960 × 1280 px
                     </span>
-                    <span id="live-status-badge" class="hidden inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30 font-semibold">
+                    <span id="live-status-badge" class="hidden inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30 font-semibold text-[11px]">
                         <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
-                        LIVE TIMESTAMP
+                        LIVE
                     </span>
-                    <span id="map-load-status" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-                        <i data-lucide="globe" class="w-3.5 h-3.5"></i>
-                        Esri QGIS Siap
+                    <span id="map-load-status" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium text-[11px]">
+                        <i data-lucide="globe" class="w-3 h-3"></i>
+                        Esri Siap
                     </span>
                 </div>
-                <div class="flex items-center gap-2">
-                    <button id="btn-reset-sample" class="px-2.5 py-1 rounded-lg hover:bg-slate-800 text-slate-300 transition flex items-center gap-1.5" title="Muat ulang foto contoh lapangan">
-                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-blue-400"></i>
-                        Reset Contoh
+
+                <!-- Pilihan Rasio Ukuran Foto: 3:4, 9:16, Asli, 1:1 -->
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <div class="inline-flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-700/80" id="aspect-ratio-group" title="Pilih Rasio Ukuran Foto">
+                        <button type="button" data-ratio="3:4" class="ratio-btn px-2 py-1 rounded-lg text-[11px] font-bold bg-blue-600 text-white shadow transition">3:4</button>
+                        <button type="button" data-ratio="9:16" class="ratio-btn px-2 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white transition">9:16</button>
+                        <button type="button" data-ratio="original" class="ratio-btn px-2 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white transition">Asli</button>
+                        <button type="button" data-ratio="1:1" class="ratio-btn px-2 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white transition">1:1</button>
+                    </div>
+
+                    <button id="btn-reset-sample" class="px-2 py-1 rounded-lg hover:bg-slate-800 text-slate-300 transition flex items-center gap-1 text-[11px]" title="Muat ulang foto contoh">
+                        <i data-lucide="refresh-cw" class="w-3 h-3 text-blue-400"></i>
+                        <span class="hidden sm:inline">Reset</span>
                     </button>
                 </div>
             </div>
@@ -238,8 +247,8 @@
                 </div>
             </div>
 
-            <!-- Canvas Container / Dropzone -->
-            <div id="drop-zone" class="relative flex-1 min-h-[340px] sm:min-h-[500px] rounded-2xl border-2 border-dashed border-slate-700/80 hover:border-blue-500/70 checkerboard-bg flex items-center justify-center p-3 sm:p-5 overflow-hidden transition-colors group">
+            <!-- Canvas Container / Dropzone (Responsif HP & Desktop) -->
+            <div id="drop-zone" class="relative flex-1 min-h-[52vh] sm:min-h-[500px] rounded-2xl border-2 border-dashed border-slate-700/80 hover:border-blue-500/70 checkerboard-bg flex flex-col items-center justify-center p-2 sm:p-5 overflow-hidden transition-colors group">
                 
                 <!-- Video Element Tersembunyi untuk Stream Kamera -->
                 <video id="camera-video" playsinline autoplay muted class="hidden"></video>
@@ -257,7 +266,7 @@
                 </div>
 
                 <!-- Canvas Utama (Menampilkan Foto atau Feed Kamera Live + Timestamp Realtime) -->
-                <canvas id="preview-canvas" class="max-w-full max-h-[74vh] w-auto h-auto rounded-lg shadow-2xl object-contain transition-all"></canvas>
+                <canvas id="preview-canvas" class="max-w-full max-h-[68vh] sm:max-h-[75vh] w-auto h-auto rounded-lg shadow-2xl object-contain transition-all"></canvas>
 
                 <!-- Kontrol Melayang di Bawah Canvas saat Mode Kamera Aktif (Mirip Kamera HP: Pill Zoom + Shutter + Flip) -->
                 <div id="floating-shutter-wrap" class="hidden absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2.5 w-full px-4 pointer-events-none">
@@ -335,7 +344,7 @@
             </div>
 
             <!-- TAB 1: TEKS & LOKASI (URUTAN 7 BARIS PERSIS REFERENSI) -->
-            <div id="tab-content-data" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-4 max-h-[78vh] overflow-y-auto">
+            <div id="tab-content-data" class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 sm:p-5 flex flex-col gap-3.5 sm:gap-4 lg:max-h-[78vh] lg:overflow-y-auto">
                 
                 <!-- Baris 1: Tanggal & Waktu -->
                 <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800">
@@ -400,12 +409,18 @@
                     <div class="flex flex-wrap items-center gap-2">
                         <button type="button" id="btn-get-gps" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-400 text-xs font-medium border border-slate-700 transition flex items-center gap-1.5">
                             <i data-lucide="navigation" class="w-3.5 h-3.5"></i>
-                            GPS Perangkat
+                            GPS + Alamat Otomatis
                         </button>
-                        <button type="button" id="btn-reverse-geocode" class="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-xs font-medium border border-emerald-500/30 transition flex items-center gap-1.5">
+                        <button type="button" id="btn-reverse-geocode" class="px-3 py-1.5 rounded-xl bg-emerald-600/25 hover:bg-emerald-600/35 text-emerald-300 text-xs font-semibold border border-emerald-500/40 transition flex items-center gap-1.5">
                             <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
-                            Auto-Isi Alamat dari Tikor
+                            Isi Desa, Kec & Alamat dari Tikor
                         </button>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                        <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                            <input type="checkbox" id="toggle-auto-geocode-input" checked class="rounded bg-slate-800 border-slate-600 text-emerald-500 focus:ring-0">
+                            <span>Otomatis cari Desa & Kecamatan saat tikor diubah</span>
+                        </label>
                     </div>
                 </div>
 
@@ -657,6 +672,7 @@
         // State Utama Aplikasi
         const state = {
             appMode: 'editor', // 'editor' | 'camera'
+            aspectRatio: '3:4', // '3:4' | '9:16' | 'original' | '1:1'
             image: null,
             fileName: 'IMG_20261119_090011',
             // 7 Baris Informasi Timestamp
@@ -831,8 +847,8 @@
         // Buat Gambar Foto Contoh
         function createDefaultSampleImage() {
             const temp = document.createElement('canvas');
-            temp.width = 1280;
-            temp.height = 960;
+            temp.width = 960;
+            temp.height = 1280;
             const tctx = temp.getContext('2d');
 
             const skyGrad = tctx.createLinearGradient(0, 0, 0, 420);
@@ -855,10 +871,10 @@
 
             tctx.fillStyle = '#3f6257';
             tctx.beginPath();
-            tctx.moveTo(0, 460);
-            tctx.lineTo(1280, 420);
-            tctx.lineTo(1280, 960);
-            tctx.lineTo(0, 960);
+            tctx.moveTo(0, 560);
+            tctx.lineTo(960, 510);
+            tctx.lineTo(960, 1280);
+            tctx.lineTo(0, 1280);
             tctx.closePath();
             tctx.fill();
 
@@ -873,11 +889,11 @@
             tctx.stroke();
 
             tctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
-            tctx.fillRect(0, 0, 1280, 46);
+            tctx.fillRect(0, 0, 960, 46);
             tctx.fillStyle = '#f8fafc';
-            tctx.font = '500 18px Inter, sans-serif';
+            tctx.font = '600 15px Inter, sans-serif';
             tctx.textAlign = 'center';
-            tctx.fillText('PRATINJAU TEMPLATE — KLIK "KAMERA LIVE" UNTUK JEPRET REALTIME ATAU UPLOAD FOTO', 640, 29);
+            tctx.fillText('PRATINJAU (RASIO 3:4 / 9:16) — KLIK KAMERA ATAU UPLOAD FOTO', 480, 29);
 
             const img = new Image();
             img.onload = () => {
@@ -1218,20 +1234,65 @@
             ctx.restore();
         }
 
+        // Hitung ukuran output dan area crop tengah sesuai rasio aspek ('3:4', '9:16', '1:1', 'original')
+        function computeAspectCrop(srcW, srcH, ratioMode) {
+            if (!ratioMode || ratioMode === 'original') {
+                return { sx: 0, sy: 0, sw: srcW, sh: srcH, outW: srcW, outH: srcH };
+            }
+            let targetRatio = srcW / srcH;
+            if (ratioMode === '3:4') targetRatio = 3 / 4;
+            else if (ratioMode === '9:16') targetRatio = 9 / 16;
+            else if (ratioMode === '1:1') targetRatio = 1;
+
+            const srcRatio = srcW / srcH;
+            let sw = srcW;
+            let sh = srcH;
+            let sx = 0;
+            let sy = 0;
+
+            if (srcRatio > targetRatio) {
+                // Sumber lebih lebar -> potong kiri & kanan secara simetris
+                sw = Math.round(srcH * targetRatio);
+                sx = Math.round((srcW - sw) / 2);
+            } else if (srcRatio < targetRatio) {
+                // Sumber lebih tinggi -> potong atas & bawah secara simetris
+                sh = Math.round(srcW / targetRatio);
+                sy = Math.round((srcH - sh) / 2);
+            }
+
+            return { sx, sy, sw, sh, outW: sw, outH: sh };
+        }
+
+        window.setAspectRatio = function(ratioMode) {
+            state.aspectRatio = ratioMode;
+            document.querySelectorAll('.ratio-btn').forEach(btn => {
+                const active = btn.dataset.ratio === ratioMode;
+                btn.className = active
+                    ? 'ratio-btn px-2 py-1 rounded-lg text-[11px] font-bold bg-blue-600 text-white shadow transition'
+                    : 'ratio-btn px-2 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white transition';
+            });
+            lastMiniMapKey = '';
+            if (state.appMode === 'editor') {
+                renderCanvas();
+            }
+        };
+
         // FUNGSI RENDER UNTUK MODE EDITOR FOTO STATIS
         async function renderCanvas() {
             if (state.appMode === 'camera') return;
             if (!state.image) return;
 
             const renderId = ++currentRenderId;
-            const w = state.image.width;
-            const h = state.image.height;
+            const crop = computeAspectCrop(state.image.width, state.image.height, state.aspectRatio);
+            const w = crop.outW;
+            const h = crop.outH;
 
             canvas.width = w;
             canvas.height = h;
+            updateResolutionBadge(w, h);
 
             ctx.clearRect(0, 0, w, h);
-            ctx.drawImage(state.image, 0, 0, w, h);
+            ctx.drawImage(state.image, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, w, h);
 
             if (state.showMiniMap) {
                 const minDim = Math.min(w, h);
@@ -1591,22 +1652,26 @@
             }
         }
 
-        // Gambar frame video ke target context dengan memperhitungkan Digital Zoom Crop & Mirror kamera depan
+        // Gambar frame video ke target context dengan memperhitungkan Rasio Aspek (9:16 / 3:4), Digital Zoom Crop & Mirror kamera depan
         function drawZoomedVideoFrame(targetCtx, vw, vh) {
+            const aspectCrop = computeAspectCrop(vw, vh, state.aspectRatio);
             const dz = Math.max(1.0, state.digitalZoomFactor || 1.0);
-            const cropW = vw / dz;
-            const cropH = vh / dz;
-            const sx = (vw - cropW) / 2;
-            const sy = (vh - cropH) / 2;
+            const cropW = aspectCrop.sw / dz;
+            const cropH = aspectCrop.sh / dz;
+            const sx = aspectCrop.sx + (aspectCrop.sw - cropW) / 2;
+            const sy = aspectCrop.sy + (aspectCrop.sh - cropH) / 2;
+            const outW = aspectCrop.outW;
+            const outH = aspectCrop.outH;
 
             targetCtx.save();
             const isFront = state.currentLensRole === 'front' || (state.facingMode === 'user' && !state.selectedDeviceId);
             if (isFront) {
-                targetCtx.translate(vw, 0);
+                targetCtx.translate(outW, 0);
                 targetCtx.scale(-1, 1);
             }
-            targetCtx.drawImage(videoEl, sx, sy, cropW, cropH, 0, 0, vw, vh);
+            targetCtx.drawImage(videoEl, sx, sy, cropW, cropH, 0, 0, outW, outH);
             targetCtx.restore();
+            return { outW, outH };
         }
 
         function startLiveRenderLoop() {
@@ -1616,16 +1681,18 @@
                 if (videoEl.readyState >= videoEl.HAVE_CURRENT_DATA) {
                     const vw = videoEl.videoWidth || 1280;
                     const vh = videoEl.videoHeight || 720;
-                    if (canvas.width !== vw || canvas.height !== vh) {
-                        canvas.width = vw;
-                        canvas.height = vh;
-                        updateResolutionBadge(vw, vh);
+                    const aspectCrop = computeAspectCrop(vw, vh, state.aspectRatio);
+
+                    if (canvas.width !== aspectCrop.outW || canvas.height !== aspectCrop.outH) {
+                        canvas.width = aspectCrop.outW;
+                        canvas.height = aspectCrop.outH;
+                        updateResolutionBadge(aspectCrop.outW, aspectCrop.outH);
                     }
 
                     drawZoomedVideoFrame(ctx, vw, vh);
 
                     // Gambar Timestamp & Mini-Map Esri di atas frame video secara realtime
-                    drawTimestampOverlay(vw, vh);
+                    drawTimestampOverlay(aspectCrop.outW, aspectCrop.outH);
                 }
 
                 liveRafId = requestAnimationFrame(renderFrame);
@@ -1633,7 +1700,7 @@
             liveRafId = requestAnimationFrame(renderFrame);
         }
 
-        // Jepret Foto dari Kamera Live (Menyertakan hasil Zoom & Lensa Aktif!)
+        // Jepret Foto dari Kamera Live (Menyertakan Rasio 9:16 / 3:4, Zoom & Lensa Aktif!)
         function captureLivePhoto() {
             if (state.appMode !== 'camera' || !state.cameraStream) return;
 
@@ -1654,8 +1721,9 @@
             const rawCanvas = document.createElement('canvas');
             const vw = videoEl.videoWidth || canvas.width;
             const vh = videoEl.videoHeight || canvas.height;
-            rawCanvas.width = vw;
-            rawCanvas.height = vh;
+            const aspectCrop = computeAspectCrop(vw, vh, state.aspectRatio);
+            rawCanvas.width = aspectCrop.outW;
+            rawCanvas.height = aspectCrop.outH;
             const rctx = rawCanvas.getContext('2d');
             drawZoomedVideoFrame(rctx, vw, vh);
 
@@ -1682,11 +1750,12 @@
             capturedImg.src = rawCanvas.toDataURL('image/jpeg', 0.96);
         }
 
-        // Fitur Reverse Geocoding: Otomatis Isi Alamat Lengkap Indonesia dari Koordinat
+        // Fitur Reverse Geocoding Indonesia: Otomatis Isi Jalan, Kelurahan/Desa, Kecamatan, Kabupaten & Provinsi dari Koordinat
+        let reverseGeoTimer = null;
         async function autoFillAddressFromCoords(silent = false) {
             const lat = parseFloat(state.lat);
             const lng = parseFloat(state.lng);
-            if (isNaN(lat) || isNaN(lng)) {
+            if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
                 if (!silent) showToast('Masukkan nilai Latitude dan Longitude yang valid terlebih dahulu.', 'warning');
                 return;
             }
@@ -1695,30 +1764,81 @@
             const origHtml = btn.innerHTML;
             if (!silent) {
                 btn.disabled = true;
-                btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Mencari Alamat...`;
+                btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Mencari Desa & Kec...`;
                 lucide.createIcons();
             }
 
             try {
-                const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=id`;
-                const res = await fetch(url);
-                if (!res.ok) throw new Error('Gagal mengambil data alamat');
-                const data = await res.json();
-                const addr = data.address || {};
+                let streetFull = '';
+                let village = '';
+                let district = '';
+                let city = '';
+                let province = '';
 
-                const houseNo = addr.house_number ? `No.${addr.house_number} ` : '';
-                const road = addr.road || addr.pedestrian || addr.amenity || addr.building || data.name || '';
-                const streetFull = `${houseNo}${road}`.trim();
+                // Sumber 1: Nominatim OpenStreetMap (detail jalan, kelurahan/desa, kecamatan)
+                try {
+                    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=id`;
+                    const res = await fetch(url);
+                    if (res.ok) {
+                        const data = await res.json();
+                        const addr = data.address || {};
 
-                const village = addr.village || addr.suburb || addr.neighbourhood || addr.quarter || '';
+                        const houseNo = addr.house_number ? `No.${addr.house_number} ` : '';
+                        const road = addr.road || addr.pedestrian || addr.path || addr.amenity || addr.building || data.name || '';
+                        streetFull = `${houseNo}${road}`.trim();
 
-                let district = addr.city_district || addr.district || addr.subdistrict || '';
-                if (district && !district.toLowerCase().startsWith('kecamatan')) {
-                    district = `Kecamatan ${district}`;
+                        // Level Kelurahan / Desa di Indonesia
+                        village = addr.village || addr.hamlet || addr.suburb || addr.neighbourhood || addr.quarter || addr.residential || '';
+
+                        // Level Kecamatan di Indonesia
+                        district = addr.city_district || addr.district || addr.subdistrict || addr.municipality || '';
+
+                        // Level Kabupaten / Kota
+                        city = addr.county || addr.city || addr.regency || addr.town || '';
+
+                        // Level Provinsi
+                        province = addr.state || addr.region || '';
+                    }
+                } catch (e) {
+                    console.warn('Nominatim fallback:', e);
                 }
 
-                const city = addr.county || addr.city || addr.regency || addr.town || '';
-                const province = addr.state || addr.region || '';
+                // Sumber 2 (Pelengkap jika Kelurahan/Desa atau Kecamatan masih kosong): BigDataCloud Reverse Geocode
+                if (!village || !district || !city || !province) {
+                    try {
+                        const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=id`;
+                        const bdcRes = await fetch(bdcUrl);
+                        if (bdcRes.ok) {
+                            const bdc = await bdcRes.json();
+                            const admin = (bdc.localityInfo && bdc.localityInfo.administrative) || [];
+                            if (!village) {
+                                const desaObj = admin.find(a => a.adminLevel === 7 || a.adminLevel === 8) || {};
+                                village = desaObj.name || bdc.locality || '';
+                            }
+                            if (!district) {
+                                const kecObj = admin.find(a => a.adminLevel === 6) || {};
+                                district = kecObj.name || '';
+                            }
+                            if (!city) {
+                                const kabObj = admin.find(a => a.adminLevel === 5) || {};
+                                city = kabObj.name || bdc.city || '';
+                            }
+                            if (!province) {
+                                province = bdc.principalSubdivision || '';
+                            }
+                        }
+                    } catch (e2) {
+                        console.warn('BDC fallback error:', e2);
+                    }
+                }
+
+                // Rapikan awalan Kecamatan jika belum ada kata 'Kecamatan' / 'Kec.'
+                if (district && !/^(kecamatan|kec\.)/i.test(district.trim())) {
+                    district = `Kecamatan ${district.trim()}`;
+                }
+
+                // Hapus kata 'Kelurahan ' jika ingin format ringkas atau pertahankan nama bersih desa/kelurahan
+                village = village.replace(/^Kelurahan\s+/i, '').trim();
 
                 state.street = streetFull;
                 state.village = village;
@@ -1733,9 +1853,12 @@
                 document.getElementById('input-province').value = state.province;
 
                 if (state.appMode === 'editor') renderCanvas();
-                if (!silent) showToast('Alamat lengkap berhasil diperbarui dari titik koordinat!', 'success');
+                if (!silent) {
+                    const infoSummary = [village, district].filter(Boolean).join(', ');
+                    showToast(infoSummary ? `Lokasi terisi: ${infoSummary}` : 'Alamat diperbarui dari koordinat!', 'success');
+                }
             } catch (err) {
-                if (!silent) showToast('Gagal mengambil alamat otomatis. Anda tetap bisa mengeditnya secara manual.', 'error');
+                if (!silent) showToast('Gagal mengambil alamat otomatis. Silakan periksa koneksi internet.', 'error');
             } finally {
                 if (!silent) {
                     btn.disabled = false;
@@ -1743,6 +1866,15 @@
                     lucide.createIcons();
                 }
             }
+        }
+
+        function triggerDebouncedAutoGeocode() {
+            const autoToggle = document.getElementById('toggle-auto-geocode-input');
+            if (!autoToggle || !autoToggle.checked) return;
+            clearTimeout(reverseGeoTimer);
+            reverseGeoTimer = setTimeout(() => {
+                autoFillAddressFromCoords(true);
+            }, 900);
         }
 
         // Proses File Foto Utama & Baca EXIF
@@ -1795,6 +1927,7 @@
 
                     if (foundExif) {
                         showToast('Metadata tanggal/GPS dari EXIF foto berhasil dimuat!', 'success');
+                        if (gpsLat && gpsLon) autoFillAddressFromCoords(true);
                     }
                 });
             } catch (e) {
@@ -1972,13 +2105,22 @@
                 if (state.appMode === 'editor') renderCanvas();
             });
 
+            // Tombol Rasio Ukuran Foto (3:4, 9:16, Asli, 1:1)
+            document.querySelectorAll('.ratio-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    window.setAspectRatio(btn.dataset.ratio);
+                });
+            });
+
             document.getElementById('input-lat').addEventListener('input', (e) => {
                 state.lat = e.target.value;
                 scheduleRender(250);
+                triggerDebouncedAutoGeocode();
             });
             document.getElementById('input-lng').addEventListener('input', (e) => {
                 state.lng = e.target.value;
                 scheduleRender(250);
+                triggerDebouncedAutoGeocode();
             });
 
             document.getElementById('btn-get-gps').addEventListener('click', () => {
@@ -1986,7 +2128,7 @@
                     showToast('Browser tidak mendukung Geolocation.', 'error');
                     return;
                 }
-                showToast('Mengambil lokasi GPS perangkat...', 'info');
+                showToast('Mengambil koordinat GPS & mencari Desa/Kecamatan...', 'info');
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
                         state.lat = String(pos.coords.latitude);
@@ -1994,7 +2136,7 @@
                         document.getElementById('input-lat').value = state.lat;
                         document.getElementById('input-lng').value = state.lng;
                         scheduleRender(0);
-                        showToast('Koordinat GPS diperbarui!', 'success');
+                        autoFillAddressFromCoords(false);
                     },
                     () => showToast('Izin lokasi ditolak atau GPS tidak tersedia.', 'warning'),
                     { enableHighAccuracy: true, timeout: 8000 }
