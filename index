@@ -1,0 +1,2161 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timestamp Photo Editor & Live Camera - by Perdana</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Google: Inter & Roboto -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- EXIF-JS untuk membaca metadata foto -->
+    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Roboto', 'sans-serif'],
+                        mono: ['Roboto Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(71, 85, 105, 0.8);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 116, 139, 1);
+        }
+
+        /* Latar Belakang Checkerboard untuk Preview Canvas */
+        .checkerboard-bg {
+            background-color: #0b1120;
+            background-image: 
+                linear-gradient(45deg, #162033 25%, transparent 25%), 
+                linear-gradient(-45deg, #162033 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #162033 75%), 
+                linear-gradient(-45deg, transparent 75%, #162033 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+        /* Custom Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 9999px;
+        }
+
+        /* Animasi Flash saat Jepret Kamera */
+        @keyframes cameraFlash {
+            0% { opacity: 0.92; }
+            100% { opacity: 0; }
+        }
+        .animate-flash {
+            animation: cameraFlash 0.35s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col selection:bg-blue-500 selection:text-white">
+
+    <!-- Toast Notification Container (Pengganti alert) -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Header Dark Navy dengan Watermark Halus 'by perdana' -->
+    <header class="bg-[#0a1128]/95 backdrop-blur-md border-b border-slate-800/90 sticky top-0 z-30 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-blue-600/20 border border-blue-400/20 shrink-0">
+                    <i data-lucide="camera" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                    <div class="flex items-baseline gap-2">
+                        <h1 class="font-bold text-base sm:text-lg tracking-tight text-white leading-none">
+                            Timestamp<span class="text-blue-400">Camera</span> Pro
+                        </h1>
+                        <span class="text-[11px] font-medium tracking-wider text-slate-400/75 select-none italic">
+                            by perdana
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1 hidden sm:block">Kamera Realtime, Editor Tikor, Alamat & Mini-Map Esri QGIS</p>
+                </div>
+            </div>
+
+            <!-- Menu Mode & Aksi Cepat -->
+            <div class="flex items-center gap-2 sm:gap-2.5">
+                <!-- Switcher Mode: Editor Foto vs Kamera Realtime -->
+                <div class="bg-slate-900/90 p-1 rounded-xl border border-slate-700/80 flex items-center gap-1">
+                    <button type="button" id="mode-btn-editor" onclick="setAppMode('editor')" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 bg-blue-600 text-white shadow transition">
+                        <i data-lucide="image" class="w-3.5 h-3.5"></i>
+                        <span>Editor Foto</span>
+                    </button>
+                    <button type="button" id="mode-btn-camera" onclick="setAppMode('camera')" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-800 transition">
+                        <i data-lucide="video" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        <span>Kamera Live</span>
+                    </button>
+                </div>
+
+                <label for="file-input" class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-medium border border-slate-700 transition active:scale-95" title="Unggah Foto dari Galeri">
+                    <i data-lucide="image-plus" class="w-4 h-4 text-blue-400"></i>
+                    <span class="hidden md:inline">Upload</span>
+                </label>
+                <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp" class="hidden">
+
+                <button id="btn-download" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-blue-600/25 transition active:scale-95">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Download HD</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Kolom Kiri: Area Preview Canvas / Kamera Live (7 kolom di desktop) -->
+        <div class="lg:col-span-7 flex flex-col gap-3">
+            <!-- Bar Info Resolusi, Status Kamera & Peta Esri -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 font-mono" id="resolution-badge">
+                        <i data-lucide="maximize" class="w-3.5 h-3.5 text-blue-400"></i>
+                        1280 × 960 px
+                    </span>
+                    <span id="live-status-badge" class="hidden inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30 font-semibold">
+                        <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+                        LIVE TIMESTAMP
+                    </span>
+                    <span id="map-load-status" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                        <i data-lucide="globe" class="w-3.5 h-3.5"></i>
+                        Esri QGIS Siap
+                    </span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="btn-reset-sample" class="px-2.5 py-1 rounded-lg hover:bg-slate-800 text-slate-300 transition flex items-center gap-1.5" title="Muat ulang foto contoh lapangan">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-blue-400"></i>
+                        Reset Contoh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bar Kontrol Kamera Realtime (Ganti Lensa & Pengaturan) -->
+            <div id="camera-toolbar" class="hidden bg-slate-900/95 border border-emerald-500/30 rounded-2xl p-3 flex flex-col gap-2.5 shadow-lg">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <!-- Selector Lensa Kamera Fisik (Ultra-Wide / Utama / Tele / Depan) -->
+                        <div class="flex items-center gap-1.5 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5">
+                            <i data-lucide="aperture" class="w-3.5 h-3.5 text-emerald-400 shrink-0"></i>
+                            <select id="camera-device-select" class="bg-transparent text-slate-200 text-xs font-medium max-w-[185px] sm:max-w-[230px] focus:outline-none">
+                                <option value="environment">Lensa Belakang (1x Utama)</option>
+                                <option value="user">Kamera Depan (Selfie)</option>
+                            </select>
+                        </div>
+
+                        <button type="button" id="btn-cycle-lens" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition flex items-center gap-1.5" title="Ganti Lensa Berikutnya (Ultra-Wide / Utama / Tele / Depan)">
+                            <i data-lucide="refresh-ccw" class="w-3.5 h-3.5 text-blue-400"></i>
+                            <span>Ganti Lensa</span>
+                        </button>
+
+                        <button type="button" id="btn-switch-facing" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition flex items-center gap-1.5" title="Balik Kamera Depan / Belakang">
+                            <i data-lucide="switch-camera" class="w-3.5 h-3.5 text-emerald-400"></i>
+                            <span class="hidden sm:inline">Depan/Belakang</span>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <label class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer text-xs text-slate-300" title="Sinkronkan jam detik & GPS secara otomatis">
+                            <input type="checkbox" id="toggle-live-gps" checked class="rounded bg-slate-800 border-slate-600 text-emerald-500 focus:ring-0">
+                            <span>Auto GPS</span>
+                        </label>
+
+                        <button type="button" id="btn-toggle-torch" class="hidden px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-medium border border-slate-700 transition items-center gap-1" title="Nyalakan Lampu Flash / Senter">
+                            <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+                            <span>Flash</span>
+                        </button>
+
+                        <button type="button" id="btn-capture-photo" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 transition active:scale-95 flex items-center gap-1.5">
+                            <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+                            <span>Jepret</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Baris Zoom Presets (.6x, 1x, 2x, 3x, 5x) & Slider Zoom Halus (Hardware + Digital HD) -->
+                <div id="camera-zoom-bar" class="bg-slate-950/90 border border-slate-800 rounded-xl px-3 py-2 flex flex-wrap items-center gap-3">
+                    <div class="inline-flex items-center bg-slate-900 p-1 rounded-full border border-slate-700/80 gap-0.5" id="zoom-preset-pills">
+                        <button type="button" data-zoom="0.6" class="zoom-pill-btn px-2.5 py-1 rounded-full text-[11px] font-bold text-slate-300 hover:text-white transition" title="Beralih ke Lensa Ultra-Wide (.6x)">.6</button>
+                        <button type="button" data-zoom="1" class="zoom-pill-btn px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-600 text-white shadow transition">1x</button>
+                        <button type="button" data-zoom="2" class="zoom-pill-btn px-2.5 py-1 rounded-full text-[11px] font-bold text-slate-300 hover:text-white transition">2</button>
+                        <button type="button" data-zoom="3" class="zoom-pill-btn px-2.5 py-1 rounded-full text-[11px] font-bold text-slate-300 hover:text-white transition">3</button>
+                        <button type="button" data-zoom="5" class="zoom-pill-btn px-2.5 py-1 rounded-full text-[11px] font-bold text-slate-300 hover:text-white transition">5</button>
+                    </div>
+
+                    <div class="flex-1 min-w-[140px] flex items-center gap-2.5">
+                        <i data-lucide="zoom-out" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+                        <input type="range" id="input-camera-zoom" min="1" max="8" step="0.1" value="1" class="flex-1">
+                        <i data-lucide="zoom-in" class="w-3.5 h-3.5 text-emerald-400 shrink-0"></i>
+                    </div>
+
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <span id="camera-zoom-val" class="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">1.0x</span>
+                        <span id="camera-zoom-type" class="text-[10px] text-slate-400 hidden sm:inline">Utama</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Canvas Container / Dropzone -->
+            <div id="drop-zone" class="relative flex-1 min-h-[340px] sm:min-h-[500px] rounded-2xl border-2 border-dashed border-slate-700/80 hover:border-blue-500/70 checkerboard-bg flex items-center justify-center p-3 sm:p-5 overflow-hidden transition-colors group">
+                
+                <!-- Video Element Tersembunyi untuk Stream Kamera -->
+                <video id="camera-video" playsinline autoplay muted class="hidden"></video>
+
+                <!-- Efek Flash Layar Saat Jepret -->
+                <div id="flash-overlay" class="absolute inset-0 bg-white pointer-events-none opacity-0 z-30"></div>
+
+                <!-- Overlay Drag & Drop -->
+                <div id="drag-overlay" class="absolute inset-0 bg-blue-600/20 backdrop-blur-sm border-2 border-blue-400 rounded-2xl z-20 hidden flex-col items-center justify-center text-center p-6 pointer-events-none">
+                    <div class="w-16 h-16 rounded-full bg-blue-500/30 flex items-center justify-center mb-3 animate-bounce">
+                        <i data-lucide="upload-cloud" class="w-8 h-8 text-white"></i>
+                    </div>
+                    <p class="text-lg font-bold text-white">Lepaskan foto di sini</p>
+                    <p class="text-sm text-blue-200">Mendukung format JPG, PNG, dan WEBP</p>
+                </div>
+
+                <!-- Canvas Utama (Menampilkan Foto atau Feed Kamera Live + Timestamp Realtime) -->
+                <canvas id="preview-canvas" class="max-w-full max-h-[74vh] w-auto h-auto rounded-lg shadow-2xl object-contain transition-all"></canvas>
+
+                <!-- Kontrol Melayang di Bawah Canvas saat Mode Kamera Aktif (Mirip Kamera HP: Pill Zoom + Shutter + Flip) -->
+                <div id="floating-shutter-wrap" class="hidden absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2.5 w-full px-4 pointer-events-none">
+                    <!-- Pill Zoom Cepat Melayang -->
+                    <div class="pointer-events-auto inline-flex items-center bg-slate-950/80 backdrop-blur-md p-1 rounded-full border border-white/15 shadow-xl gap-1">
+                        <button type="button" data-zoom="0.6" class="zoom-pill-btn w-8 h-7 rounded-full text-[11px] font-bold text-slate-200 hover:bg-white/10 transition">.6</button>
+                        <button type="button" data-zoom="1" class="zoom-pill-btn w-9 h-7 rounded-full text-[11px] font-bold bg-emerald-600 text-white shadow transition">1x</button>
+                        <button type="button" data-zoom="2" class="zoom-pill-btn w-8 h-7 rounded-full text-[11px] font-bold text-slate-200 hover:bg-white/10 transition">2</button>
+                        <button type="button" data-zoom="3" class="zoom-pill-btn w-8 h-7 rounded-full text-[11px] font-bold text-slate-200 hover:bg-white/10 transition">3</button>
+                        <button type="button" data-zoom="5" class="zoom-pill-btn w-8 h-7 rounded-full text-[11px] font-bold text-slate-200 hover:bg-white/10 transition">5</button>
+                    </div>
+
+                    <!-- Baris Tombol Ganti Lensa - Shutter - Balik Kamera -->
+                    <div class="pointer-events-auto flex items-center gap-5">
+                        <button type="button" id="btn-float-cycle-lens" class="w-11 h-11 rounded-full bg-slate-950/80 hover:bg-slate-900 backdrop-blur-md border border-white/20 text-white shadow-xl flex items-center justify-center transition active:scale-90" title="Ganti Lensa Kamera (Ultra-Wide / Utama / Tele)">
+                            <i data-lucide="aperture" class="w-5 h-5 text-blue-400"></i>
+                        </button>
+
+                        <button type="button" id="btn-shutter-circle" class="w-16 h-16 rounded-full bg-white/95 hover:bg-white border-4 border-emerald-500 shadow-2xl flex items-center justify-center transition active:scale-90 group" title="Jepret Foto Timestamp Sekarang">
+                            <span class="w-12 h-12 rounded-full bg-emerald-600 group-hover:bg-emerald-500 flex items-center justify-center text-white">
+                                <i data-lucide="camera" class="w-6 h-6"></i>
+                            </span>
+                        </button>
+
+                        <button type="button" id="btn-float-flip" class="w-11 h-11 rounded-full bg-slate-950/80 hover:bg-slate-900 backdrop-blur-md border border-white/20 text-white shadow-xl flex items-center justify-center transition active:scale-90" title="Balik Kamera Depan / Belakang">
+                            <i data-lucide="refresh-cw" class="w-5 h-5 text-emerald-400"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tombol Upload Cepat di Sudut Atas (Mode Editor) -->
+                <div id="quick-upload-badge" class="absolute top-3 right-3 opacity-85 group-hover:opacity-100 transition">
+                    <label for="file-input" class="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-xs font-medium text-slate-200 border border-slate-700 shadow-lg backdrop-blur">
+                        <i data-lucide="folder-open" class="w-3.5 h-3.5 text-blue-400"></i>
+                        Pilih / Seret Foto
+                    </label>
+                </div>
+            </div>
+
+            <!-- Bar Info Kualitas Output -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                    <label class="text-xs font-medium text-slate-400">Format Simpan:</label>
+                    <select id="export-format" class="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-blue-500">
+                        <option value="image/jpeg">JPG (Kualitas Maksimal 96%)</option>
+                        <option value="image/png">PNG (Lossless Tanpa Kompresi)</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-3">
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs text-slate-300">
+                        <input type="checkbox" id="toggle-auto-download-capture" checked class="rounded bg-slate-800 border-slate-600 text-emerald-500 focus:ring-0">
+                        <span>Otomatis simpan file saat jepret</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kolom Kanan: Panel Kontrol Editor (5 kolom di desktop) -->
+        <div class="lg:col-span-5 flex flex-col gap-4">
+            
+            <!-- Navigasi 3 Tab Editor -->
+            <div class="bg-slate-900 p-1.5 rounded-2xl border border-slate-800 grid grid-cols-3 gap-1.5">
+                <button id="tab-btn-data" onclick="switchTab('data')" class="py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 bg-blue-600 text-white shadow transition">
+                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                    <span>Teks & Lokasi</span>
+                </button>
+                <button id="tab-btn-map" onclick="switchTab('map')" class="py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                    <i data-lucide="map" class="w-4 h-4"></i>
+                    <span>Mini-Map Esri</span>
+                </button>
+                <button id="tab-btn-style" onclick="switchTab('style')" class="py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                    <i data-lucide="sliders" class="w-4 h-4"></i>
+                    <span>Tampilan</span>
+                </button>
+            </div>
+
+            <!-- TAB 1: TEKS & LOKASI (URUTAN 7 BARIS PERSIS REFERENSI) -->
+            <div id="tab-content-data" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-4 max-h-[78vh] overflow-y-auto">
+                
+                <!-- Baris 1: Tanggal & Waktu -->
+                <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-xs font-semibold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+                            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                            1. Tanggal & Waktu
+                        </label>
+                        <div class="flex items-center gap-3">
+                            <button type="button" id="btn-now-datetime" class="text-[11px] text-blue-400 hover:text-blue-300 underline">
+                                Waktu Sekarang
+                            </button>
+                            <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs text-slate-400">
+                                <input type="checkbox" id="toggle-datetime" checked class="rounded bg-slate-800 border-slate-600 text-blue-500 focus:ring-0">
+                                Tampil
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                        <input type="datetime-local" id="input-datetime-picker" step="1"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                        <select id="datetime-format-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500">
+                            <option value="ampm_dot">19 Nov 2026 9.00.11 AM (Referensi)</option>
+                            <option value="ampm_colon">19 Nov 2026 9:00:11 AM</option>
+                            <option value="24h_wib">19 Nov 2026 09:00:11 WIB</option>
+                            <option value="id_full">Kamis, 19 Nov 2026 09:00:11</option>
+                        </select>
+                    </div>
+
+                    <input type="text" id="input-datetime-text" value="19 Nov 2026 9.00.11 AM"
+                        placeholder="Contoh: 19 Nov 2026 9.00.11 AM"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                </div>
+
+                <!-- Baris 2: Titik Koordinat (Latitude & Longitude) -->
+                <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-xs font-semibold uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
+                            <i data-lucide="crosshair" class="w-3.5 h-3.5"></i>
+                            2. Titik Koordinat (Lat Long)
+                        </label>
+                        <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs text-slate-400">
+                            <input type="checkbox" id="toggle-coords" checked class="rounded bg-slate-800 border-slate-600 text-blue-500 focus:ring-0">
+                            Tampil
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 mb-2.5">
+                        <div>
+                            <span class="text-[11px] text-slate-400 block mb-1">Latitude</span>
+                            <input type="text" id="input-lat" value="-2.1784599870443344"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-slate-400 block mb-1">Longitude</span>
+                            <input type="text" id="input-lng" value="111.46139888092875"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="button" id="btn-get-gps" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-400 text-xs font-medium border border-slate-700 transition flex items-center gap-1.5">
+                            <i data-lucide="navigation" class="w-3.5 h-3.5"></i>
+                            GPS Perangkat
+                        </button>
+                        <button type="button" id="btn-reverse-geocode" class="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-xs font-medium border border-emerald-500/30 transition flex items-center gap-1.5">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                            Auto-Isi Alamat dari Tikor
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Baris 3 - 7: Alamat Terstruktur Indonesia -->
+                <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                            <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+                            3–7. Detail Alamat (Baris 3 s/d 7)
+                        </label>
+                        <span class="text-[11px] text-slate-500">Kosongkan jika tidak perlu</span>
+                    </div>
+
+                    <!-- Baris 3: Jalan / Nomor / Tempat -->
+                    <div>
+                        <label class="text-[11px] text-slate-400 block mb-1">Baris 3 — Jalan / Nomor / Nama Tempat</label>
+                        <input type="text" id="input-street" value="No.115 Jalan Cempedak"
+                            placeholder="Contoh: No.115 Jalan Cempedak"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+
+                    <!-- Baris 4: Kelurahan / Desa -->
+                    <div>
+                        <label class="text-[11px] text-slate-400 block mb-1">Baris 4 — Kelurahan / Desa</label>
+                        <input type="text" id="input-village" value="Nanga Bulik"
+                            placeholder="Contoh: Nanga Bulik"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+
+                    <!-- Baris 5: Kecamatan -->
+                    <div>
+                        <label class="text-[11px] text-slate-400 block mb-1">Baris 5 — Kecamatan</label>
+                        <input type="text" id="input-district" value="Kecamatan Bulik"
+                            placeholder="Contoh: Kecamatan Bulik"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+
+                    <!-- Baris 6: Kabupaten / Kota -->
+                    <div>
+                        <label class="text-[11px] text-slate-400 block mb-1">Baris 6 — Kabupaten / Kota</label>
+                        <input type="text" id="input-city" value="Kabupaten Lamandau"
+                            placeholder="Contoh: Kabupaten Lamandau"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+
+                    <!-- Baris 7: Provinsi -->
+                    <div>
+                        <label class="text-[11px] text-slate-400 block mb-1">Baris 7 — Provinsi</label>
+                        <input type="text" id="input-province" value="Kalimantan Tengah"
+                            placeholder="Contoh: Kalimantan Tengah"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: PENGATURAN MINI-MAP ESRI QGIS -->
+            <div id="tab-content-map" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-5">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Kotak Mini-Map Esri (ArcGIS / QGIS)</h3>
+                        <p class="text-xs text-slate-400">Basemap XYZ tanpa API key, otomatis mengikuti tikor</p>
+                    </div>
+                    <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-blue-400 bg-blue-500/10 px-3 py-1.5 rounded-xl border border-blue-500/30">
+                        <input type="checkbox" id="toggle-minimap" checked class="rounded bg-slate-800 border-slate-600 text-blue-500 focus:ring-0">
+                        Aktif
+                    </label>
+                </div>
+
+                <!-- Pilihan Sumber Mini-Map -->
+                <div>
+                    <label class="text-xs font-semibold uppercase tracking-wider text-slate-300 block mb-2">
+                        Sumber Gambar Peta
+                    </label>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <button type="button" data-mapmode="auto" class="map-mode-btn p-3 rounded-xl border-2 border-blue-500 bg-blue-500/10 text-left transition">
+                            <div class="font-semibold text-xs text-white flex items-center gap-1.5">
+                                <i data-lucide="globe" class="w-3.5 h-3.5 text-blue-400"></i>
+                                Esri ArcGIS / QGIS
+                            </div>
+                            <div class="text-[11px] text-slate-400 mt-1">Render tile Esri MapServer + pin merah sesuai tikor</div>
+                        </button>
+                        <button type="button" data-mapmode="custom" class="map-mode-btn p-3 rounded-xl border border-slate-700 bg-slate-950 hover:border-slate-600 text-left transition">
+                            <div class="font-semibold text-xs text-white flex items-center gap-1.5">
+                                <i data-lucide="image" class="w-3.5 h-3.5 text-emerald-400"></i>
+                                Upload Screenshot Peta
+                            </div>
+                            <div class="text-[11px] text-slate-400 mt-1">Gunakan gambar tangkapan layar peta sendiri</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Gaya Layer Esri QGIS -->
+                <div>
+                    <label class="text-xs font-semibold uppercase tracking-wider text-slate-300 block mb-2">
+                        Basemap Layer Esri (QGIS XYZ Tile)
+                    </label>
+                    <select id="map-tile-style" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                        <option value="esri_street">Esri World Street Map (Jalan & Nama Tempat - Mirip Google Maps)</option>
+                        <option value="esri_imagery">Esri World Imagery (Citra Satelit Resolusi Tinggi)</option>
+                        <option value="esri_topo">Esri World Topo Map (Topografi & Kontur Wilayah)</option>
+                        <option value="esri_gray">Esri World Light Gray Canvas (Peta Terang Minimalis)</option>
+                    </select>
+                </div>
+
+                <!-- Upload Custom Map Image -->
+                <div id="custom-map-upload-box" class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3">
+                    <div class="text-xs text-slate-300">
+                        <span class="font-medium block">Gambar Peta Kustom (Opsional)</span>
+                        <span id="custom-map-filename" class="text-[11px] text-slate-500">Belum ada gambar peta diunggah</span>
+                    </div>
+                    <label for="minimap-file-input" class="cursor-pointer px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-white border border-slate-700 transition shrink-0">
+                        Pilih Gambar
+                    </label>
+                    <input type="file" id="minimap-file-input" accept="image/*" class="hidden">
+                </div>
+
+                <!-- Zoom Peta & Ukuran Kotak Peta -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <div class="flex justify-between text-xs mb-1.5">
+                            <span class="text-slate-300 font-medium">Level Zoom Esri</span>
+                            <span id="map-zoom-val" class="text-blue-400 font-mono">16</span>
+                        </div>
+                        <input type="range" id="input-map-zoom" min="11" max="18" value="16" class="w-full">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs mb-1.5">
+                            <span class="text-slate-300 font-medium">Ukuran Kotak Peta</span>
+                            <span id="map-size-val" class="text-blue-400 font-mono">100%</span>
+                        </div>
+                        <input type="range" id="input-map-size" min="60" max="180" value="100" class="w-full">
+                    </div>
+                </div>
+
+                <!-- Opsi Pin Merah & Label Pojok Peta -->
+                <div class="pt-2 border-t border-slate-800 flex flex-col gap-2.5">
+                    <label class="inline-flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                        <input type="checkbox" id="toggle-map-flush" checked class="rounded bg-slate-800 border-slate-600 text-blue-500 focus:ring-0">
+                        Tempel Mepet Pojok Kiri Bawah (Tanpa Jarak Pinggir)
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                        <input type="checkbox" id="toggle-map-pin" checked class="rounded bg-slate-800 border-slate-600 text-blue-500 focus:ring-0">
+                        Pin Lokasi Merah di Tengah Kotak Peta
+                    </label>
+                    <div class="flex items-center justify-between gap-2">
+                        <label class="inline-flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                            <input type="checkbox" id="toggle-map-google" checked class="rounded bg-slate-800 border-slate-600 text-blue-500 focus:ring-0">
+                            Label Teks di Pojok Kiri Bawah Peta
+                        </label>
+                        <select id="map-corner-label" class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-blue-500">
+                            <option value="google">Google (Gaya Referensi)</option>
+                            <option value="esri">Esri</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: TAMPILAN TEKS, OUTLINE & POSISI -->
+            <div id="tab-content-style" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-5">
+                
+                <!-- Preset Gaya Layout -->
+                <div>
+                    <label class="text-xs font-semibold uppercase tracking-wider text-slate-300 block mb-2">
+                        Preset Tata Letak
+                    </label>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <button type="button" data-layout="reference" class="layout-preset-btn p-3 rounded-xl border-2 border-blue-500 bg-blue-500/10 text-left transition">
+                            <div class="font-semibold text-xs text-white">Timestamp Referensi</div>
+                            <div class="text-[11px] text-slate-400 mt-0.5">Peta kiri bawah + teks putih rata kanan di kanan bawah</div>
+                        </button>
+                        <button type="button" data-layout="darkcard" class="layout-preset-btn p-3 rounded-xl border border-slate-700 bg-slate-950 hover:border-slate-600 text-left transition">
+                            <div class="font-semibold text-xs text-white">Kotak Gelap Kontras</div>
+                            <div class="text-[11px] text-slate-400 mt-0.5">Tambahkan latar gelap transparan di belakang teks</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Skala Ukuran Teks & Ketebalan Outline -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <div class="flex justify-between text-xs mb-1.5">
+                            <span class="text-slate-300 font-medium">Ukuran Huruf</span>
+                            <span id="font-size-val" class="text-blue-400 font-mono">100%</span>
+                        </div>
+                        <input type="range" id="input-font-size" min="60" max="150" value="100" class="w-full">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs mb-1.5">
+                            <span class="text-slate-300 font-medium">Margin Pinggir</span>
+                            <span id="margin-val" class="text-blue-400 font-mono">2.2%</span>
+                        </div>
+                        <input type="range" id="input-margin" min="10" max="60" value="22" class="w-full">
+                    </div>
+                </div>
+
+                <!-- Ketebalan Outline & Bayangan Hitam -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <div class="flex justify-between text-xs mb-1.5">
+                            <span class="text-slate-300 font-medium">Outline Teks Hitam</span>
+                            <span id="outline-val" class="text-blue-400 font-mono">Sedang</span>
+                        </div>
+                        <input type="range" id="input-outline" min="0" max="100" value="45" class="w-full">
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-medium text-slate-300 block mb-1.5">Warna Teks Utama</label>
+                        <div class="flex items-center gap-2">
+                            <button type="button" data-color="#ffffff" class="color-btn w-7 h-7 rounded-full bg-white border-2 border-blue-500 shadow" title="Putih Standar"></button>
+                            <button type="button" data-color="#fef08a" class="color-btn w-7 h-7 rounded-full bg-yellow-200 border border-slate-600 shadow" title="Kuning Lembut"></button>
+                            <button type="button" data-color="#bae6fd" class="color-btn w-7 h-7 rounded-full bg-sky-200 border border-slate-600 shadow" title="Biru Muda"></button>
+                            <input type="color" id="input-text-color" value="#ffffff" class="w-8 h-7 rounded cursor-pointer bg-transparent border-0">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Jenis Font & Posisi Teks -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-medium text-slate-300 block mb-1.5">Jenis Huruf (Sans-Serif)</label>
+                        <select id="input-font-family" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                            <option value="'Roboto', 'Inter', sans-serif">Roboto / Inter (Persis Referensi)</option>
+                            <option value="Arial, Helvetica, sans-serif">Arial / Helvetica Kamera</option>
+                            <option value="'Roboto Mono', monospace">Monospace Digital</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-medium text-slate-300 block mb-1.5">Posisi Blok Teks</label>
+                        <select id="input-text-position" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                            <option value="bottom-right">Kanan Bawah (Rata Kanan)</option>
+                            <option value="bottom-left">Kiri Bawah (Rata Kiri)</option>
+                            <option value="top-right">Kanan Atas (Rata Kanan)</option>
+                            <option value="top-left">Kiri Atas (Rata Kiri)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // Inisialisasi ikon Lucide
+        lucide.createIcons();
+
+        // State Utama Aplikasi
+        const state = {
+            appMode: 'editor', // 'editor' | 'camera'
+            image: null,
+            fileName: 'IMG_20261119_090011',
+            // 7 Baris Informasi Timestamp
+            datetimeText: '19 Nov 2026 9.00.11 AM',
+            lat: '-2.1784599870443344',
+            lng: '111.46139888092875',
+            street: 'No.115 Jalan Cempedak',
+            village: 'Nanga Bulik',
+            district: 'Kecamatan Bulik',
+            city: 'Kabupaten Lamandau',
+            province: 'Kalimantan Tengah',
+            // Visibility toggles
+            showDatetime: true,
+            showCoords: true,
+            showMiniMap: true,
+            showMapPin: true,
+            showMapGoogle: true,
+            // Pengaturan Mini-Map Esri QGIS
+            mapMode: 'auto', // 'auto' | 'custom'
+            mapTileStyle: 'esri_street', // 'esri_street' | 'esri_imagery' | 'esri_topo' | 'esri_gray'
+            mapCornerLabel: 'google', // 'google' | 'esri'
+            mapZoom: 16,
+            mapSizeScale: 1.0,
+            mapFlushCorner: true,
+            customMapImage: null,
+            // Pengaturan Tampilan Teks
+            layoutPreset: 'reference', // 'reference' | 'darkcard'
+            textPosition: 'bottom-right',
+            fontSizeScale: 1.0,
+            marginRatio: 0.022,
+            outlineStrength: 0.45,
+            textColor: '#ffffff',
+            fontFamily: "'Roboto', 'Inter', sans-serif",
+            // Kamera Realtime State (Lensa & Zoom Hybrid)
+            cameraStream: null,
+            cameraDevices: [], // daftar { deviceId, label, role: 'ultrawide'|'main'|'tele'|'front'|'other' }
+            facingMode: 'environment',
+            selectedDeviceId: '',
+            currentLensRole: 'main',
+            zoomLevel: 1.0,
+            hwZoomMin: 1.0,
+            hwZoomMax: 1.0,
+            hasHardwareZoom: false,
+            torchOn: false,
+            liveClockTimer: null,
+            geoWatchId: null,
+            lastReverseGeoCoords: null
+        };
+
+        // Cache Tile Peta Esri & Buffer Mini-Map untuk 60fps Live Camera
+        const tileCache = new Map();
+        let mapRenderDebounce = null;
+        let currentRenderId = 0;
+        let liveRafId = null;
+
+        // Offscreen buffer untuk kotak mini-map agar kamera live 60fps super mulus tanpa kedip
+        const miniMapBuffer = document.createElement('canvas');
+        const miniMapBufferCtx = miniMapBuffer.getContext('2d');
+        let lastMiniMapKey = '';
+
+        // Elemen DOM
+        const canvas = document.getElementById('preview-canvas');
+        const ctx = canvas.getContext('2d');
+        const videoEl = document.getElementById('camera-video');
+        const fileInput = document.getElementById('file-input');
+        const dropZone = document.getElementById('drop-zone');
+        const dragOverlay = document.getElementById('drag-overlay');
+        const resolutionBadge = document.getElementById('resolution-badge');
+        const mapLoadStatus = document.getElementById('map-load-status');
+
+        // Notifikasi Toast (Tanpa alert)
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                info: 'bg-slate-900 border-blue-500 text-slate-100',
+                success: 'bg-slate-900 border-emerald-500 text-emerald-100',
+                warning: 'bg-slate-900 border-amber-500 text-amber-100',
+                error: 'bg-slate-900 border-rose-500 text-rose-100'
+            };
+            toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl border-l-4 shadow-2xl text-xs sm:text-sm font-medium backdrop-blur-md transition-all duration-300 ${colors[type] || colors.info}`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-x-4');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // Navigasi Tab Kanan
+        window.switchTab = function(tabName) {
+            const tabs = ['data', 'map', 'style'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-btn-${t}`);
+                const content = document.getElementById(`tab-content-${t}`);
+                if (t === tabName) {
+                    btn.className = 'py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 bg-blue-600 text-white shadow transition';
+                    content.classList.remove('hidden');
+                } else {
+                    btn.className = 'py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition';
+                    content.classList.add('hidden');
+                }
+            });
+        };
+
+        // Switcher Mode Utama: 'editor' vs 'camera'
+        window.setAppMode = async function(mode) {
+            if (state.appMode === mode && (mode === 'editor' || state.cameraStream)) return;
+            state.appMode = mode;
+
+            const btnEditor = document.getElementById('mode-btn-editor');
+            const btnCamera = document.getElementById('mode-btn-camera');
+            const cameraToolbar = document.getElementById('camera-toolbar');
+            const liveBadge = document.getElementById('live-status-badge');
+            const shutterWrap = document.getElementById('floating-shutter-wrap');
+            const quickUpload = document.getElementById('quick-upload-badge');
+
+            if (mode === 'camera') {
+                btnEditor.className = 'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-800 transition';
+                btnCamera.className = 'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 bg-emerald-600 text-white shadow transition';
+                cameraToolbar.classList.remove('hidden');
+                liveBadge.classList.remove('hidden');
+                shutterWrap.classList.remove('hidden');
+                quickUpload.classList.add('hidden');
+
+                await startLiveCamera();
+            } else {
+                btnEditor.className = 'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 bg-blue-600 text-white shadow transition';
+                btnCamera.className = 'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-800 transition';
+                cameraToolbar.classList.add('hidden');
+                liveBadge.classList.add('hidden');
+                shutterWrap.classList.add('hidden');
+                document.getElementById('camera-zoom-bar').classList.add('hidden');
+                quickUpload.classList.remove('hidden');
+
+                stopLiveCamera();
+                if (state.image) {
+                    updateResolutionBadge(state.image.width, state.image.height);
+                    renderCanvas();
+                }
+            }
+        };
+
+        // Format Tanggal & Waktu sesuai gaya referensi
+        function formatDateTimeReference(dateObj, mode = 'ampm_dot') {
+            if (!dateObj || isNaN(dateObj.getTime())) return '';
+            const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            const hari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+            const tgl = dateObj.getDate();
+            const bln = bulan[dateObj.getMonth()];
+            const thn = dateObj.getFullYear();
+
+            const h24 = dateObj.getHours();
+            const m = String(dateObj.getMinutes()).padStart(2, '0');
+            const s = String(dateObj.getSeconds()).padStart(2, '0');
+
+            const ampm = h24 >= 12 ? 'PM' : 'AM';
+            const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+
+            if (mode === 'ampm_dot') {
+                return `${tgl} ${bln} ${thn} ${h12}.${m}.${s} ${ampm}`;
+            } else if (mode === 'ampm_colon') {
+                return `${tgl} ${bln} ${thn} ${h12}:${m}:${s} ${ampm}`;
+            } else if (mode === '24h_wib') {
+                return `${tgl} ${bln} ${thn} ${String(h24).padStart(2, '0')}:${m}:${s} WIB`;
+            } else {
+                return `${hari[dateObj.getDay()]}, ${tgl} ${bln} ${thn} ${String(h24).padStart(2, '0')}:${m}:${s}`;
+            }
+        }
+
+        // Buat Gambar Foto Contoh
+        function createDefaultSampleImage() {
+            const temp = document.createElement('canvas');
+            temp.width = 1280;
+            temp.height = 960;
+            const tctx = temp.getContext('2d');
+
+            const skyGrad = tctx.createLinearGradient(0, 0, 0, 420);
+            skyGrad.addColorStop(0, '#94a3b8');
+            skyGrad.addColorStop(0.6, '#cbd5e1');
+            skyGrad.addColorStop(1, '#e2e8f0');
+            tctx.fillStyle = skyGrad;
+            tctx.fillRect(0, 0, 1280, 420);
+
+            tctx.fillStyle = '#3b82f6';
+            tctx.fillRect(240, 160, 480, 260);
+            tctx.fillStyle = '#1e3a8a';
+            tctx.beginPath();
+            tctx.moveTo(220, 160);
+            tctx.lineTo(360, 75);
+            tctx.lineTo(740, 145);
+            tctx.lineTo(740, 160);
+            tctx.closePath();
+            tctx.fill();
+
+            tctx.fillStyle = '#3f6257';
+            tctx.beginPath();
+            tctx.moveTo(0, 460);
+            tctx.lineTo(1280, 420);
+            tctx.lineTo(1280, 960);
+            tctx.lineTo(0, 960);
+            tctx.closePath();
+            tctx.fill();
+
+            tctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+            tctx.lineWidth = 6;
+            tctx.beginPath();
+            tctx.moveTo(60, 620);
+            tctx.lineTo(840, 480);
+            tctx.lineTo(1060, 960);
+            tctx.moveTo(140, 740);
+            tctx.lineTo(930, 560);
+            tctx.stroke();
+
+            tctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
+            tctx.fillRect(0, 0, 1280, 46);
+            tctx.fillStyle = '#f8fafc';
+            tctx.font = '500 18px Inter, sans-serif';
+            tctx.textAlign = 'center';
+            tctx.fillText('PRATINJAU TEMPLATE — KLIK "KAMERA LIVE" UNTUK JEPRET REALTIME ATAU UPLOAD FOTO', 640, 29);
+
+            const img = new Image();
+            img.onload = () => {
+                state.image = img;
+                if (state.appMode === 'editor') {
+                    updateResolutionBadge(img.width, img.height);
+                    renderCanvas();
+                }
+            };
+            img.src = temp.toDataURL('image/jpeg', 0.92);
+        }
+
+        function updateResolutionBadge(w, h) {
+            resolutionBadge.innerHTML = `<i data-lucide="maximize" class="w-3.5 h-3.5 text-blue-400"></i> ${w} × ${h} px`;
+            lucide.createIcons();
+        }
+
+        // Konversi Koordinat Lat/Lng ke Tile Slippy Map
+        function latLngToTileFraction(lat, lng, zoom) {
+            const n = Math.pow(2, zoom);
+            const x = ((lng + 180) / 360) * n;
+            const latRad = (lat * Math.PI) / 180;
+            const y = ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n;
+            return { x, y };
+        }
+
+        function getTileUrl(x, y, z, style) {
+            const maxTile = Math.pow(2, z);
+            const wrappedX = ((x % maxTile) + maxTile) % maxTile;
+            const clampedY = Math.max(0, Math.min(maxTile - 1, y));
+
+            if (style === 'esri_imagery') {
+                return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${clampedY}/${wrappedX}`;
+            } else if (style === 'esri_topo') {
+                return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${z}/${clampedY}/${wrappedX}`;
+            } else if (style === 'esri_gray') {
+                return `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/${z}/${clampedY}/${wrappedX}`;
+            } else {
+                return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${clampedY}/${wrappedX}`;
+            }
+        }
+
+        function loadMapTile(url) {
+            if (tileCache.has(url)) {
+                return Promise.resolve(tileCache.get(url));
+            }
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    tileCache.set(url, img);
+                    resolve(img);
+                };
+                img.onerror = () => {
+                    resolve(null);
+                };
+                img.src = url;
+            });
+        }
+
+        function drawVectorMapFallback(targetCtx, x, y, size) {
+            targetCtx.fillStyle = '#e5e3df';
+            targetCtx.fillRect(x, y, size, size);
+
+            targetCtx.fillStyle = '#cbe6a3';
+            targetCtx.fillRect(x + size * 0.05, y + size * 0.08, size * 0.35, size * 0.28);
+
+            targetCtx.strokeStyle = '#9cc0f9';
+            targetCtx.lineWidth = size * 0.07;
+            targetCtx.beginPath();
+            targetCtx.moveTo(x, y + size * 0.85);
+            targetCtx.quadraticCurveTo(x + size * 0.4, y + size * 0.72, x + size, y + size * 0.92);
+            targetCtx.stroke();
+
+            targetCtx.strokeStyle = '#ffffff';
+            targetCtx.lineWidth = size * 0.045;
+            targetCtx.beginPath();
+            targetCtx.moveTo(x + size * 0.25, y);
+            targetCtx.lineTo(x + size * 0.35, y + size);
+            targetCtx.moveTo(x + size * 0.72, y);
+            targetCtx.lineTo(x + size * 0.65, y + size);
+            targetCtx.moveTo(x, y + size * 0.25);
+            targetCtx.lineTo(x + size, y + size * 0.3);
+            targetCtx.stroke();
+
+            targetCtx.strokeStyle = '#f8c967';
+            targetCtx.lineWidth = size * 0.065;
+            targetCtx.beginPath();
+            targetCtx.moveTo(x, y + size * 0.58);
+            targetCtx.lineTo(x + size, y + size * 0.42);
+            targetCtx.stroke();
+        }
+
+        // Render Mini-Map ke Offscreen Buffer agar Kamera Live 60fps tanpa kedip
+        async function updateMiniMapBuffer(size) {
+            const key = `${size}|${state.lat}|${state.lng}|${state.mapZoom}|${state.mapTileStyle}|${state.mapMode}|${state.showMapPin}|${state.showMapGoogle}|${state.mapCornerLabel}|${state.customMapImage ? state.customMapImage.src.length : 0}`;
+            if (key === lastMiniMapKey && miniMapBuffer.width === size) {
+                return;
+            }
+            lastMiniMapKey = key;
+
+            miniMapBuffer.width = size;
+            miniMapBuffer.height = size;
+            const bctx = miniMapBufferCtx;
+
+            bctx.save();
+            bctx.clearRect(0, 0, size, size);
+
+            const lat = parseFloat(state.lat);
+            const lng = parseFloat(state.lng);
+
+            if (state.mapMode === 'custom' && state.customMapImage) {
+                const img = state.customMapImage;
+                const minSide = Math.min(img.width, img.height);
+                const sx = (img.width - minSide) / 2;
+                const sy = (img.height - minSide) / 2;
+                bctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+                mapLoadStatus.innerHTML = `<i data-lucide="image" class="w-3.5 h-3.5"></i> Peta Kustom Aktif`;
+                lucide.createIcons();
+            } else if (!isNaN(lat) && !isNaN(lng) && lat >= -85 && lat <= 85 && lng >= -180 && lng <= 180) {
+                drawVectorMapFallback(bctx, 0, 0, size);
+
+                const zoom = state.mapZoom;
+                const frac = latLngToTileFraction(lat, lng, zoom);
+                const centerTileX = Math.floor(frac.x);
+                const centerTileY = Math.floor(frac.y);
+                const offsetX = (frac.x - centerTileX) * 256;
+                const offsetY = (frac.y - centerTileY) * 256;
+
+                const tileRenderSize = size * 1.12;
+                const scaleFactor = tileRenderSize / 256;
+
+                const promises = [];
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        const tx = centerTileX + dx;
+                        const ty = centerTileY + dy;
+                        const url = getTileUrl(tx, ty, zoom, state.mapTileStyle);
+                        promises.push(
+                            loadMapTile(url).then(tileImg => ({ tileImg, dx, dy }))
+                        );
+                    }
+                }
+
+                const tiles = await Promise.all(promises);
+                const centerX = size / 2;
+                const centerY = size / 2;
+                let loadedCount = 0;
+
+                tiles.forEach(({ tileImg, dx, dy }) => {
+                    if (tileImg) {
+                        loadedCount++;
+                        const drawX = centerX + (dx * 256 - offsetX) * scaleFactor;
+                        const drawY = centerY + (dy * 256 - offsetY) * scaleFactor;
+                        bctx.drawImage(tileImg, drawX, drawY, tileRenderSize + 0.5, tileRenderSize + 0.5);
+                    }
+                });
+
+                if (loadedCount > 0) {
+                    mapLoadStatus.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium';
+                    mapLoadStatus.innerHTML = `<i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Esri QGIS (${loadedCount}/9 tile)`;
+                } else {
+                    mapLoadStatus.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/20 font-medium';
+                    mapLoadStatus.innerHTML = `<i data-lucide="wifi-off" class="w-3.5 h-3.5"></i> Offline (Peta Fallback)`;
+                }
+                lucide.createIcons();
+            } else {
+                drawVectorMapFallback(bctx, 0, 0, size);
+            }
+
+            // Pin Lokasi Merah di Tengah Kotak
+            if (state.showMapPin) {
+                const cx = size / 2;
+                const cy = size / 2;
+                const pinH = size * 0.21;
+                const pinW = pinH * 0.68;
+
+                bctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+                bctx.beginPath();
+                bctx.ellipse(cx, cy + 2, pinW * 0.35, pinW * 0.16, 0, 0, Math.PI * 2);
+                bctx.fill();
+
+                bctx.fillStyle = '#ea4335';
+                bctx.strokeStyle = '#991b1b';
+                bctx.lineWidth = Math.max(1, size * 0.008);
+                bctx.beginPath();
+                bctx.arc(cx, cy - pinH * 0.62, pinW * 0.5, Math.PI * 0.82, Math.PI * 0.18, false);
+                bctx.lineTo(cx, cy);
+                bctx.closePath();
+                bctx.fill();
+                bctx.stroke();
+
+                bctx.fillStyle = '#811d16';
+                bctx.beginPath();
+                bctx.arc(cx, cy - pinH * 0.62, pinW * 0.18, 0, Math.PI * 2);
+                bctx.fill();
+            }
+
+            // Label Teks Pojok Kiri Bawah Kotak Peta ('Google' atau 'Esri')
+            if (state.showMapGoogle) {
+                const gFontSize = Math.max(10, Math.round(size * 0.072));
+                bctx.font = `700 ${gFontSize}px Roboto, Arial, sans-serif`;
+                bctx.textAlign = 'left';
+                bctx.textBaseline = 'bottom';
+                const gx = size * 0.04;
+                const gy = size - size * 0.03;
+
+                bctx.lineWidth = Math.max(2, gFontSize * 0.24);
+                bctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+
+                if (state.mapCornerLabel === 'esri') {
+                    bctx.strokeText('Esri', gx, gy);
+                    bctx.fillStyle = '#005e95';
+                    bctx.fillText('Esri', gx, gy);
+                } else {
+                    bctx.strokeText('Google', gx, gy);
+                    const letters = [
+                        { ch: 'G', col: '#4285F4' },
+                        { ch: 'o', col: '#EA4335' },
+                        { ch: 'o', col: '#FBBC05' },
+                        { ch: 'g', col: '#4285F4' },
+                        { ch: 'l', col: '#34A853' },
+                        { ch: 'e', col: '#EA4335' }
+                    ];
+                    let curX = gx;
+                    letters.forEach(item => {
+                        bctx.fillStyle = item.col;
+                        bctx.fillText(item.ch, curX, gy);
+                        curX += bctx.measureText(item.ch).width;
+                    });
+                }
+            }
+
+            // Garis tepi halus kotak peta
+            bctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+            bctx.lineWidth = Math.max(1, size * 0.008);
+            bctx.strokeRect(0, 0, size, size);
+            bctx.restore();
+        }
+
+        // Gambar Overlay Timestamp (Mini-Map + 7 Baris Teks) di atas Canvas
+        function drawTimestampOverlay(w, h) {
+            const minDim = Math.min(w, h);
+            const margin = Math.round(minDim * state.marginRatio);
+
+            // 1. Tempel Kotak Mini-Map dari Buffer
+            if (state.showMiniMap) {
+                const mapSize = Math.round(minDim * 0.345 * state.mapSizeScale);
+                const mapEdgeMargin = state.mapFlushCorner ? 0 : margin;
+                const mapX = mapEdgeMargin;
+                const mapY = h - mapEdgeMargin - mapSize;
+
+                // Pastikan buffer diperbarui secara asinkron tanpa memblokir frame
+                updateMiniMapBuffer(mapSize);
+                if (miniMapBuffer.width > 0 && miniMapBuffer.height > 0) {
+                    ctx.drawImage(miniMapBuffer, mapX, mapY, mapSize, mapSize);
+                }
+            }
+
+            // 2. Susun 7 Baris Informasi Timestamp Sesuai Referensi
+            const lines = [];
+            if (state.showDatetime && state.datetimeText.trim()) {
+                lines.push(state.datetimeText.trim());
+            }
+            if (state.showCoords && (state.lat.trim() || state.lng.trim())) {
+                const coordLine = `${state.lat.trim()} ${state.lng.trim()}`.trim();
+                if (coordLine) lines.push(coordLine);
+            }
+            if (state.street.trim()) lines.push(state.street.trim());
+            if (state.village.trim()) lines.push(state.village.trim());
+            if (state.district.trim()) lines.push(state.district.trim());
+            if (state.city.trim()) lines.push(state.city.trim());
+            if (state.province.trim()) lines.push(state.province.trim());
+
+            if (lines.length === 0) return;
+
+            // 3. Konfigurasi Font & Posisi Blok Teks
+            const fontSize = Math.max(13, Math.round((minDim / 1000) * 33 * state.fontSizeScale));
+            const lineHeight = Math.round(fontSize * 1.24);
+            ctx.font = `400 ${fontSize}px ${state.fontFamily}`;
+
+            const isRight = state.textPosition.includes('right');
+            const isBottom = state.textPosition.includes('bottom');
+
+            let maxLineWidth = 0;
+            lines.forEach(line => {
+                const lw = ctx.measureText(line).width;
+                if (lw > maxLineWidth) maxLineWidth = lw;
+            });
+
+            const totalTextHeight = lines.length * lineHeight;
+            const padX = state.layoutPreset === 'darkcard' ? Math.round(fontSize * 0.55) : 0;
+            const padY = state.layoutPreset === 'darkcard' ? Math.round(fontSize * 0.4) : 0;
+
+            const blockW = maxLineWidth + padX * 2;
+            const blockH = totalTextHeight + padY * 2;
+
+            const blockX = isRight ? (w - margin - blockW) : margin;
+            const blockY = isBottom ? (h - margin - blockH) : margin;
+
+            ctx.save();
+
+            if (state.layoutPreset === 'darkcard') {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.52)';
+                ctx.beginPath();
+                ctx.roundRect(blockX, blockY, blockW, blockH, Math.round(fontSize * 0.35));
+                ctx.fill();
+            }
+
+            ctx.textAlign = isRight ? 'right' : 'left';
+            ctx.textBaseline = 'alphabetic';
+            const textAnchorX = isRight ? (blockX + blockW - padX) : (blockX + padX);
+
+            const outlineWidth = Math.max(1.2, fontSize * 0.085 * (state.outlineStrength / 0.45));
+            ctx.lineJoin = 'round';
+            ctx.miterLimit = 2;
+
+            lines.forEach((line, idx) => {
+                const lineY = blockY + padY + (idx + 1) * lineHeight - Math.round(fontSize * 0.18);
+
+                if (state.outlineStrength > 0.02) {
+                    ctx.save();
+                    ctx.shadowColor = `rgba(0, 0, 0, ${Math.min(0.95, 0.45 + state.outlineStrength)})`;
+                    ctx.shadowBlur = Math.round(fontSize * 0.14);
+                    ctx.shadowOffsetX = Math.round(fontSize * 0.03);
+                    ctx.shadowOffsetY = Math.round(fontSize * 0.04);
+
+                    ctx.strokeStyle = `rgba(0, 0, 0, ${Math.min(0.92, 0.35 + state.outlineStrength * 0.85)})`;
+                    ctx.lineWidth = outlineWidth;
+                    ctx.strokeText(line, textAnchorX, lineY);
+                    ctx.restore();
+                }
+
+                ctx.fillStyle = state.textColor;
+                ctx.fillText(line, textAnchorX, lineY);
+            });
+
+            ctx.restore();
+        }
+
+        // FUNGSI RENDER UNTUK MODE EDITOR FOTO STATIS
+        async function renderCanvas() {
+            if (state.appMode === 'camera') return;
+            if (!state.image) return;
+
+            const renderId = ++currentRenderId;
+            const w = state.image.width;
+            const h = state.image.height;
+
+            canvas.width = w;
+            canvas.height = h;
+
+            ctx.clearRect(0, 0, w, h);
+            ctx.drawImage(state.image, 0, 0, w, h);
+
+            if (state.showMiniMap) {
+                const minDim = Math.min(w, h);
+                const mapSize = Math.round(minDim * 0.345 * state.mapSizeScale);
+                await updateMiniMapBuffer(mapSize);
+                if (renderId !== currentRenderId) return;
+            }
+
+            drawTimestampOverlay(w, h);
+        }
+
+        function scheduleRender(delay = 0) {
+            if (state.appMode === 'camera') {
+                // Di mode kamera live, paksa buffer peta ter-update langsung
+                lastMiniMapKey = '';
+                return;
+            }
+            if (delay <= 0) {
+                renderCanvas();
+                return;
+            }
+            clearTimeout(mapRenderDebounce);
+            mapRenderDebounce = setTimeout(() => {
+                renderCanvas();
+            }, delay);
+        }
+
+        // ==========================================
+        // FITUR KAMERA REALTIME (GANTI LENSA & ZOOM HYBRID)
+        // ==========================================
+        function classifyCameraLens(label, index) {
+            const lower = (label || '').toLowerCase();
+            if (lower.includes('front') || lower.includes('depan') || lower.includes('user') || lower.includes('selfie')) {
+                return { role: 'front', friendly: `Kamera Depan${label ? ' (' + label + ')' : ''}` };
+            }
+            if (lower.includes('ultra') || lower.includes('0.5') || lower.includes('0.6') || lower.includes('wide-angle') || lower.includes('camera2 2')) {
+                return { role: 'ultrawide', friendly: `Lensa Ultra-Wide (.6x)${label ? ' — ' + label : ''}` };
+            }
+            if (lower.includes('tele') || lower.includes('zoom') || lower.includes('periscope') || lower.includes('3x') || lower.includes('5x')) {
+                return { role: 'tele', friendly: `Lensa Telephoto (Zoom)${label ? ' — ' + label : ''}` };
+            }
+            if (lower.includes('macro') || lower.includes('makro')) {
+                return { role: 'macro', friendly: `Lensa Makro${label ? ' — ' + label : ''}` };
+            }
+            if (lower.includes('back') || lower.includes('rear') || lower.includes('belakang') || lower.includes('environment') || lower.includes('camera2 0')) {
+                return { role: 'main', friendly: `Lensa Utama (1x)${label ? ' — ' + label : ''}` };
+            }
+            return { role: index === 0 ? 'main' : 'other', friendly: label || `Lensa Kamera ${index + 1}` };
+        }
+
+        async function populateCameraDevices(activeTrack = null) {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoInputs = devices.filter(d => d.kind === 'videoinput');
+                const select = document.getElementById('camera-device-select');
+                const activeDeviceId = activeTrack && activeTrack.getSettings ? activeTrack.getSettings().deviceId : state.selectedDeviceId;
+
+                state.cameraDevices = videoInputs.map((dev, index) => {
+                    const info = classifyCameraLens(dev.label, index);
+                    return {
+                        deviceId: dev.deviceId,
+                        label: dev.label,
+                        role: info.role,
+                        friendly: info.friendly
+                    };
+                });
+
+                if (state.cameraDevices.length > 0) {
+                    select.innerHTML = '';
+                    state.cameraDevices.forEach((item) => {
+                        const opt = document.createElement('option');
+                        opt.value = item.deviceId;
+                        opt.textContent = item.friendly;
+                        select.appendChild(opt);
+                    });
+
+                    if (activeDeviceId && [...select.options].some(o => o.value === activeDeviceId)) {
+                        select.value = activeDeviceId;
+                        state.selectedDeviceId = activeDeviceId;
+                        const found = state.cameraDevices.find(d => d.deviceId === activeDeviceId);
+                        if (found) state.currentLensRole = found.role;
+                    }
+                }
+            } catch (e) {
+                console.warn('Tidak dapat membaca daftar lensa kamera:', e);
+            }
+        }
+
+        // Terapkan Zoom Hybrid: Hardware Optical/Sensor Zoom jika tersedia + Digital HD Crop Zoom mulus
+        async function applyCameraZoom(targetZoom, autoSwitchLens = false) {
+            let z = Math.max(0.6, Math.min(8.0, Number(targetZoom) || 1.0));
+
+            // Jika user menekan preset .6x dan perangkat punya lensa Ultra-Wide terpisah, otomatis pindah ke lensa Ultra-Wide!
+            if (autoSwitchLens && z < 0.95) {
+                const ultraLens = state.cameraDevices.find(d => d.role === 'ultrawide');
+                if (ultraLens && ultraLens.deviceId !== state.selectedDeviceId) {
+                    state.selectedDeviceId = ultraLens.deviceId;
+                    state.currentLensRole = 'ultrawide';
+                    await startLiveCamera(ultraLens.deviceId, 1.0);
+                    updateZoomUI(0.6, 'Ultra-Wide');
+                    showToast('Beralih ke Lensa Ultra-Wide (.6x)', 'info');
+                    return;
+                } else if (state.currentLensRole !== 'ultrawide' && (!state.hasHardwareZoom || state.hwZoomMin >= 1.0)) {
+                    showToast('Perangkat/browser tidak mengekspos lensa Ultra-Wide (.6x) terpisah; menggunakan 1.0x.', 'warning');
+                    z = 1.0;
+                }
+            }
+
+            // Jika user beralih dari Ultra-Wide ke >= 1x, kembalikan ke lensa Utama (1x)
+            if (autoSwitchLens && z >= 1.0 && state.currentLensRole === 'ultrawide') {
+                const mainLens = state.cameraDevices.find(d => d.role === 'main') || state.cameraDevices.find(d => d.role !== 'front' && d.role !== 'ultrawide');
+                if (mainLens && mainLens.deviceId !== state.selectedDeviceId) {
+                    state.selectedDeviceId = mainLens.deviceId;
+                    state.currentLensRole = 'main';
+                    await startLiveCamera(mainLens.deviceId, z);
+                    return;
+                }
+            }
+
+            // Jika user pilih 3x atau 5x dan perangkat punya lensa Telephoto khusus
+            if (autoSwitchLens && z >= 3.0 && state.currentLensRole === 'main') {
+                const teleLens = state.cameraDevices.find(d => d.role === 'tele');
+                if (teleLens && teleLens.deviceId !== state.selectedDeviceId) {
+                    state.selectedDeviceId = teleLens.deviceId;
+                    state.currentLensRole = 'tele';
+                    await startLiveCamera(teleLens.deviceId, 1.0);
+                    updateZoomUI(z, 'Telephoto');
+                    showToast(`Beralih ke Lensa Telephoto (${z}x)`, 'info');
+                    return;
+                }
+            }
+
+            state.zoomLevel = z;
+            let appliedHw = false;
+
+            if (state.cameraStream) {
+                const track = state.cameraStream.getVideoTracks()[0];
+                if (track && state.hasHardwareZoom) {
+                    const clampedHw = Math.max(state.hwZoomMin, Math.min(state.hwZoomMax, z));
+                    try {
+                        await track.applyConstraints({ advanced: [{ zoom: clampedHw }] });
+                        // Sisa pembesaran di atas hwZoomMax ditangani digital crop zoom
+                        state.digitalZoomFactor = z > clampedHw ? (z / clampedHw) : 1.0;
+                        appliedHw = true;
+                    } catch (err) {
+                        state.digitalZoomFactor = z >= 1.0 ? z : 1.0;
+                    }
+                } else {
+                    state.digitalZoomFactor = z >= 1.0 ? z : 1.0;
+                }
+            } else {
+                state.digitalZoomFactor = z >= 1.0 ? z : 1.0;
+            }
+
+            const modeText = state.currentLensRole === 'ultrawide'
+                ? 'Ultra-Wide'
+                : (appliedHw ? 'Optik/Sensor' : (z > 1.01 ? 'Digital HD' : 'Utama'));
+            updateZoomUI(z, modeText);
+        }
+
+        function updateZoomUI(z, modeText = '') {
+            const displayZ = state.currentLensRole === 'ultrawide' && z <= 1.0 ? 0.6 : z;
+            const formatted = displayZ < 1 ? '.6x' : `${displayZ.toFixed(1)}x`;
+
+            const slider = document.getElementById('input-camera-zoom');
+            if (slider && displayZ >= 1) slider.value = Math.min(8, displayZ);
+
+            const valEl = document.getElementById('camera-zoom-val');
+            if (valEl) valEl.textContent = formatted;
+
+            const typeEl = document.getElementById('camera-zoom-type');
+            if (typeEl && modeText) typeEl.textContent = modeText;
+
+            // Highlight tombol pill zoom aktif (.6, 1x, 2, 3, 5)
+            document.querySelectorAll('.zoom-pill-btn').forEach(btn => {
+                const pillVal = parseFloat(btn.dataset.zoom);
+                const isActive = Math.abs(pillVal - displayZ) < 0.15;
+                if (btn.closest('#floating-shutter-wrap')) {
+                    btn.className = isActive
+                        ? 'zoom-pill-btn w-9 h-7 rounded-full text-[11px] font-bold bg-emerald-600 text-white shadow transition'
+                        : 'zoom-pill-btn w-8 h-7 rounded-full text-[11px] font-bold text-slate-200 hover:bg-white/10 transition';
+                } else {
+                    btn.className = isActive
+                        ? 'zoom-pill-btn px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-600 text-white shadow transition'
+                        : 'zoom-pill-btn px-2.5 py-1 rounded-full text-[11px] font-bold text-slate-300 hover:text-white transition';
+                }
+            });
+        }
+
+        // Ganti ke lensa kamera fisik berikutnya secara berurutan
+        async function cycleCameraLens() {
+            if (!state.cameraDevices || state.cameraDevices.length <= 1) {
+                // Fallback jika hanya 1 atau 2 kamera standar: toggle environment <-> user
+                state.selectedDeviceId = '';
+                state.facingMode = state.facingMode === 'environment' ? 'user' : 'environment';
+                state.currentLensRole = state.facingMode === 'user' ? 'front' : 'main';
+                await startLiveCamera(null, 1.0);
+                return;
+            }
+
+            const currentIdx = state.cameraDevices.findIndex(d => d.deviceId === state.selectedDeviceId);
+            const nextIdx = (currentIdx + 1) % state.cameraDevices.length;
+            const nextDev = state.cameraDevices[nextIdx];
+
+            state.selectedDeviceId = nextDev.deviceId;
+            state.currentLensRole = nextDev.role;
+            state.facingMode = nextDev.role === 'front' ? 'user' : 'environment';
+            await startLiveCamera(nextDev.deviceId, 1.0);
+            showToast(`Aktif: ${nextDev.friendly}`, 'info');
+        }
+
+        async function startLiveCamera(deviceId = null, initialZoom = 1.0) {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showToast('Browser Anda tidak mendukung akses kamera langsung (getUserMedia).', 'error');
+                setAppMode('editor');
+                return;
+            }
+
+            stopCameraStreamOnly();
+
+            const videoConstraints = {
+                width: { ideal: 1920 },
+                height: { ideal: 1080 }
+            };
+
+            if (deviceId) {
+                videoConstraints.deviceId = { exact: deviceId };
+            } else {
+                videoConstraints.facingMode = { ideal: state.facingMode };
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: videoConstraints,
+                    audio: false
+                });
+
+                state.cameraStream = stream;
+                videoEl.srcObject = stream;
+                await videoEl.play();
+
+                // Cek dukungan Flash/Torch & Zoom Hardware
+                const track = stream.getVideoTracks()[0];
+                state.hasHardwareZoom = false;
+                state.hwZoomMin = 1.0;
+                state.hwZoomMax = 1.0;
+                state.digitalZoomFactor = 1.0;
+
+                if (track && track.getCapabilities) {
+                    const caps = track.getCapabilities();
+                    const torchBtn = document.getElementById('btn-toggle-torch');
+                    if (caps.torch) {
+                        torchBtn.classList.remove('hidden');
+                        torchBtn.classList.add('inline-flex');
+                    } else {
+                        torchBtn.classList.add('hidden');
+                        torchBtn.classList.remove('inline-flex');
+                    }
+
+                    if (caps.zoom) {
+                        state.hasHardwareZoom = true;
+                        state.hwZoomMin = caps.zoom.min || 1.0;
+                        state.hwZoomMax = caps.zoom.max || 1.0;
+                    }
+                }
+
+                await populateCameraDevices(track);
+
+                const zoomInput = document.getElementById('input-camera-zoom');
+                zoomInput.min = state.hasHardwareZoom && state.hwZoomMin < 1 ? state.hwZoomMin : 1;
+                zoomInput.max = Math.max(8, state.hwZoomMax);
+                zoomInput.step = 0.1;
+
+                await applyCameraZoom(initialZoom, false);
+
+                const vw = videoEl.videoWidth || 1280;
+                const vh = videoEl.videoHeight || 720;
+                updateResolutionBadge(vw, vh);
+
+                startLiveClockAndGps();
+                startLiveRenderLoop();
+            } catch (err) {
+                console.error('Camera error:', err);
+                showToast('Gagal membuka lensa kamera. Pastikan izin kamera diizinkan & menggunakan HTTPS/localhost.', 'error');
+                setAppMode('editor');
+            }
+        }
+
+        function stopCameraStreamOnly() {
+            if (liveRafId) {
+                cancelAnimationFrame(liveRafId);
+                liveRafId = null;
+            }
+            if (state.cameraStream) {
+                state.cameraStream.getTracks().forEach(track => track.stop());
+                state.cameraStream = null;
+            }
+            state.torchOn = false;
+        }
+
+        function stopLiveCamera() {
+            stopCameraStreamOnly();
+            if (state.liveClockTimer) {
+                clearInterval(state.liveClockTimer);
+                state.liveClockTimer = null;
+            }
+            if (state.geoWatchId !== null && navigator.geolocation) {
+                navigator.geolocation.clearWatch(state.geoWatchId);
+                state.geoWatchId = null;
+            }
+        }
+
+        function startLiveClockAndGps() {
+            if (state.liveClockTimer) clearInterval(state.liveClockTimer);
+            const tickClock = () => {
+                if (state.appMode !== 'camera') return;
+                if (!document.getElementById('toggle-live-gps').checked) return;
+
+                const now = new Date();
+                const mode = document.getElementById('datetime-format-select').value;
+                const formatted = formatDateTimeReference(now, mode);
+                state.datetimeText = formatted;
+                document.getElementById('input-datetime-text').value = formatted;
+            };
+            tickClock();
+            state.liveClockTimer = setInterval(tickClock, 500);
+
+            if (state.geoWatchId !== null && navigator.geolocation) {
+                navigator.geolocation.clearWatch(state.geoWatchId);
+                state.geoWatchId = null;
+            }
+            if (navigator.geolocation && document.getElementById('toggle-live-gps').checked) {
+                state.geoWatchId = navigator.geolocation.watchPosition(
+                    (pos) => {
+                        if (state.appMode !== 'camera') return;
+                        if (!document.getElementById('toggle-live-gps').checked) return;
+
+                        const newLat = pos.coords.latitude;
+                        const newLng = pos.coords.longitude;
+                        state.lat = String(newLat);
+                        state.lng = String(newLng);
+                        document.getElementById('input-lat').value = state.lat;
+                        document.getElementById('input-lng').value = state.lng;
+
+                        if (!state.lastReverseGeoCoords ||
+                            Math.hypot(newLat - state.lastReverseGeoCoords.lat, newLng - state.lastReverseGeoCoords.lng) > 0.0004) {
+                            state.lastReverseGeoCoords = { lat: newLat, lng: newLng };
+                            autoFillAddressFromCoords(true);
+                        }
+                    },
+                    (err) => {
+                        console.warn('GPS watch warning:', err.message);
+                    },
+                    { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+                );
+            }
+        }
+
+        // Gambar frame video ke target context dengan memperhitungkan Digital Zoom Crop & Mirror kamera depan
+        function drawZoomedVideoFrame(targetCtx, vw, vh) {
+            const dz = Math.max(1.0, state.digitalZoomFactor || 1.0);
+            const cropW = vw / dz;
+            const cropH = vh / dz;
+            const sx = (vw - cropW) / 2;
+            const sy = (vh - cropH) / 2;
+
+            targetCtx.save();
+            const isFront = state.currentLensRole === 'front' || (state.facingMode === 'user' && !state.selectedDeviceId);
+            if (isFront) {
+                targetCtx.translate(vw, 0);
+                targetCtx.scale(-1, 1);
+            }
+            targetCtx.drawImage(videoEl, sx, sy, cropW, cropH, 0, 0, vw, vh);
+            targetCtx.restore();
+        }
+
+        function startLiveRenderLoop() {
+            const renderFrame = () => {
+                if (state.appMode !== 'camera' || !state.cameraStream) return;
+
+                if (videoEl.readyState >= videoEl.HAVE_CURRENT_DATA) {
+                    const vw = videoEl.videoWidth || 1280;
+                    const vh = videoEl.videoHeight || 720;
+                    if (canvas.width !== vw || canvas.height !== vh) {
+                        canvas.width = vw;
+                        canvas.height = vh;
+                        updateResolutionBadge(vw, vh);
+                    }
+
+                    drawZoomedVideoFrame(ctx, vw, vh);
+
+                    // Gambar Timestamp & Mini-Map Esri di atas frame video secara realtime
+                    drawTimestampOverlay(vw, vh);
+                }
+
+                liveRafId = requestAnimationFrame(renderFrame);
+            };
+            liveRafId = requestAnimationFrame(renderFrame);
+        }
+
+        // Jepret Foto dari Kamera Live (Menyertakan hasil Zoom & Lensa Aktif!)
+        function captureLivePhoto() {
+            if (state.appMode !== 'camera' || !state.cameraStream) return;
+
+            const flash = document.getElementById('flash-overlay');
+            flash.classList.remove('animate-flash');
+            void flash.offsetWidth;
+            flash.classList.add('animate-flash');
+
+            const format = document.getElementById('export-format').value;
+            const ext = format === 'image/png' ? 'png' : 'jpg';
+            const quality = format === 'image/jpeg' ? 0.96 : 1.0;
+
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const stampName = `CAM_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+            state.fileName = stampName;
+
+            const rawCanvas = document.createElement('canvas');
+            const vw = videoEl.videoWidth || canvas.width;
+            const vh = videoEl.videoHeight || canvas.height;
+            rawCanvas.width = vw;
+            rawCanvas.height = vh;
+            const rctx = rawCanvas.getContext('2d');
+            drawZoomedVideoFrame(rctx, vw, vh);
+
+            if (document.getElementById('toggle-auto-download-capture').checked) {
+                try {
+                    const stampedUrl = canvas.toDataURL(format, quality);
+                    const link = document.createElement('a');
+                    link.download = `${stampName}.${ext}`;
+                    link.href = stampedUrl;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } catch (err) {
+                    console.warn('Auto-download error:', err);
+                }
+            }
+
+            const capturedImg = new Image();
+            capturedImg.onload = () => {
+                state.image = capturedImg;
+                setAppMode('editor');
+                showToast(`Foto berhasil dijepret (${vw}×${vh} px, Zoom ${state.zoomLevel.toFixed(1)}x)!`, 'success');
+            };
+            capturedImg.src = rawCanvas.toDataURL('image/jpeg', 0.96);
+        }
+
+        // Fitur Reverse Geocoding: Otomatis Isi Alamat Lengkap Indonesia dari Koordinat
+        async function autoFillAddressFromCoords(silent = false) {
+            const lat = parseFloat(state.lat);
+            const lng = parseFloat(state.lng);
+            if (isNaN(lat) || isNaN(lng)) {
+                if (!silent) showToast('Masukkan nilai Latitude dan Longitude yang valid terlebih dahulu.', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('btn-reverse-geocode');
+            const origHtml = btn.innerHTML;
+            if (!silent) {
+                btn.disabled = true;
+                btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Mencari Alamat...`;
+                lucide.createIcons();
+            }
+
+            try {
+                const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=id`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Gagal mengambil data alamat');
+                const data = await res.json();
+                const addr = data.address || {};
+
+                const houseNo = addr.house_number ? `No.${addr.house_number} ` : '';
+                const road = addr.road || addr.pedestrian || addr.amenity || addr.building || data.name || '';
+                const streetFull = `${houseNo}${road}`.trim();
+
+                const village = addr.village || addr.suburb || addr.neighbourhood || addr.quarter || '';
+
+                let district = addr.city_district || addr.district || addr.subdistrict || '';
+                if (district && !district.toLowerCase().startsWith('kecamatan')) {
+                    district = `Kecamatan ${district}`;
+                }
+
+                const city = addr.county || addr.city || addr.regency || addr.town || '';
+                const province = addr.state || addr.region || '';
+
+                state.street = streetFull;
+                state.village = village;
+                state.district = district;
+                state.city = city;
+                state.province = province;
+
+                document.getElementById('input-street').value = state.street;
+                document.getElementById('input-village').value = state.village;
+                document.getElementById('input-district').value = state.district;
+                document.getElementById('input-city').value = state.city;
+                document.getElementById('input-province').value = state.province;
+
+                if (state.appMode === 'editor') renderCanvas();
+                if (!silent) showToast('Alamat lengkap berhasil diperbarui dari titik koordinat!', 'success');
+            } catch (err) {
+                if (!silent) showToast('Gagal mengambil alamat otomatis. Anda tetap bisa mengeditnya secara manual.', 'error');
+            } finally {
+                if (!silent) {
+                    btn.disabled = false;
+                    btn.innerHTML = origHtml;
+                    lucide.createIcons();
+                }
+            }
+        }
+
+        // Proses File Foto Utama & Baca EXIF
+        function handleImageFile(file) {
+            if (!file || !file.type.startsWith('image/')) {
+                showToast('Harap pilih file gambar yang valid (JPG, PNG, WEBP).', 'error');
+                return;
+            }
+
+            if (state.appMode === 'camera') {
+                setAppMode('editor');
+            }
+
+            state.fileName = file.name.replace(/\.[^/.]+$/, '') + '_timestamp';
+
+            try {
+                EXIF.getData(file, function() {
+                    let foundExif = false;
+                    const dateTaken = EXIF.getTag(this, 'DateTimeOriginal');
+                    const gpsLat = EXIF.getTag(this, 'GPSLatitude');
+                    const gpsLatRef = EXIF.getTag(this, 'GPSLatitudeRef');
+                    const gpsLon = EXIF.getTag(this, 'GPSLongitude');
+                    const gpsLonRef = EXIF.getTag(this, 'GPSLongitudeRef');
+
+                    if (dateTaken) {
+                        const parts = dateTaken.split(' ');
+                        if (parts.length === 2) {
+                            const d = parts[0].replace(/:/g, '-');
+                            const t = parts[1];
+                            const parsedDate = new Date(`${d}T${t}`);
+                            if (!isNaN(parsedDate.getTime())) {
+                                const fmtMode = document.getElementById('datetime-format-select').value;
+                                state.datetimeText = formatDateTimeReference(parsedDate, fmtMode);
+                                document.getElementById('input-datetime-text').value = state.datetimeText;
+                                document.getElementById('input-datetime-picker').value = `${d}T${t}`;
+                                foundExif = true;
+                            }
+                        }
+                    }
+
+                    if (gpsLat && gpsLon && gpsLat.length === 3 && gpsLon.length === 3) {
+                        const latDec = (gpsLat[0] + gpsLat[1] / 60 + gpsLat[2] / 3600) * (gpsLatRef === 'S' ? -1 : 1);
+                        const lonDec = (gpsLon[0] + gpsLon[1] / 60 + gpsLon[2] / 3600) * (gpsLonRef === 'W' ? -1 : 1);
+                        state.lat = String(latDec);
+                        state.lng = String(lonDec);
+                        document.getElementById('input-lat').value = state.lat;
+                        document.getElementById('input-lng').value = state.lng;
+                        foundExif = true;
+                    }
+
+                    if (foundExif) {
+                        showToast('Metadata tanggal/GPS dari EXIF foto berhasil dimuat!', 'success');
+                    }
+                });
+            } catch (e) {
+                console.warn('EXIF tidak terbaca:', e);
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    state.image = img;
+                    updateResolutionBadge(img.width, img.height);
+                    renderCanvas();
+                    showToast('Foto berhasil diunggah!', 'success');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Bind Semua Event Listener
+        function bindEvents() {
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files[0]) handleImageFile(e.target.files[0]);
+            });
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => {
+                dropZone.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); });
+            });
+            dropZone.addEventListener('dragenter', () => dragOverlay.classList.replace('hidden', 'flex'));
+            dropZone.addEventListener('dragover', () => dragOverlay.classList.replace('hidden', 'flex'));
+            dropZone.addEventListener('dragleave', (e) => {
+                if (!dropZone.contains(e.relatedTarget)) dragOverlay.classList.replace('flex', 'hidden');
+            });
+            dropZone.addEventListener('drop', (e) => {
+                dragOverlay.classList.replace('flex', 'hidden');
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) handleImageFile(e.dataTransfer.files[0]);
+            });
+
+            document.getElementById('btn-reset-sample').addEventListener('click', () => {
+                if (state.appMode === 'camera') setAppMode('editor');
+                createDefaultSampleImage();
+                showToast('Foto contoh dimuat ulang.', 'info');
+            });
+
+            // Kontrol Kamera Realtime (Ganti Lensa & Zoom)
+            document.getElementById('btn-capture-photo').addEventListener('click', captureLivePhoto);
+            document.getElementById('btn-shutter-circle').addEventListener('click', captureLivePhoto);
+
+            document.getElementById('btn-cycle-lens').addEventListener('click', cycleCameraLens);
+            document.getElementById('btn-float-cycle-lens').addEventListener('click', cycleCameraLens);
+
+            const flipFacingHandler = () => {
+                const isCurrentlyFront = state.currentLensRole === 'front' || state.facingMode === 'user';
+                const targetRole = isCurrentlyFront ? 'main' : 'front';
+                const matchedDev = state.cameraDevices.find(d => d.role === targetRole);
+                if (matchedDev) {
+                    state.selectedDeviceId = matchedDev.deviceId;
+                    state.currentLensRole = matchedDev.role;
+                    state.facingMode = targetRole === 'front' ? 'user' : 'environment';
+                    startLiveCamera(matchedDev.deviceId, 1.0);
+                } else {
+                    state.selectedDeviceId = '';
+                    state.facingMode = isCurrentlyFront ? 'environment' : 'user';
+                    state.currentLensRole = state.facingMode === 'user' ? 'front' : 'main';
+                    startLiveCamera(null, 1.0);
+                }
+            };
+            document.getElementById('btn-switch-facing').addEventListener('click', flipFacingHandler);
+            document.getElementById('btn-float-flip').addEventListener('click', flipFacingHandler);
+
+            document.getElementById('camera-device-select').addEventListener('change', (e) => {
+                const val = e.target.value;
+                if (val === 'environment' || val === 'user') {
+                    state.selectedDeviceId = '';
+                    state.facingMode = val;
+                    state.currentLensRole = val === 'user' ? 'front' : 'main';
+                    startLiveCamera(null, 1.0);
+                } else {
+                    state.selectedDeviceId = val;
+                    const found = state.cameraDevices.find(d => d.deviceId === val);
+                    state.currentLensRole = found ? found.role : 'main';
+                    startLiveCamera(val, 1.0);
+                }
+            });
+
+            // Tombol Pill Zoom Cepat (.6, 1x, 2, 3, 5) baik di toolbar maupun melayang di atas shutter
+            document.querySelectorAll('.zoom-pill-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetZ = parseFloat(btn.dataset.zoom);
+                    applyCameraZoom(targetZ, true);
+                });
+            });
+
+            // Slider Zoom Halus (1.0x - 8.0x)
+            document.getElementById('input-camera-zoom').addEventListener('input', (e) => {
+                const z = parseFloat(e.target.value);
+                applyCameraZoom(z, false);
+            });
+
+            // Pinch-to-Zoom 2 Jari di Layar Preview Kamera
+            let initialPinchDist = null;
+            let initialPinchZoom = 1.0;
+            canvas.addEventListener('touchstart', (e) => {
+                if (state.appMode === 'camera' && e.touches.length === 2) {
+                    initialPinchDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    initialPinchZoom = Math.max(1.0, state.zoomLevel || 1.0);
+                }
+            }, { passive: true });
+
+            canvas.addEventListener('touchmove', (e) => {
+                if (state.appMode === 'camera' && e.touches.length === 2 && initialPinchDist) {
+                    const curDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    const scale = curDist / initialPinchDist;
+                    const nextZoom = Math.max(1.0, Math.min(8.0, initialPinchZoom * scale));
+                    applyCameraZoom(nextZoom, false);
+                }
+            }, { passive: true });
+
+            canvas.addEventListener('touchend', () => {
+                initialPinchDist = null;
+            }, { passive: true });
+
+            document.getElementById('toggle-live-gps').addEventListener('change', (e) => {
+                if (e.target.checked && state.appMode === 'camera') {
+                    startLiveClockAndGps();
+                }
+            });
+
+            document.getElementById('btn-toggle-torch').addEventListener('click', async () => {
+                if (!state.cameraStream) return;
+                const track = state.cameraStream.getVideoTracks()[0];
+                if (!track) return;
+                try {
+                    state.torchOn = !state.torchOn;
+                    await track.applyConstraints({ advanced: [{ torch: state.torchOn }] });
+                    const btn = document.getElementById('btn-toggle-torch');
+                    btn.classList.toggle('bg-amber-500/20', state.torchOn);
+                    btn.classList.toggle('border-amber-400', state.torchOn);
+                } catch (err) {
+                    showToast('Flash tidak didukung pada mode kamera ini.', 'warning');
+                }
+            });
+
+            const syncDatePicker = () => {
+                const val = document.getElementById('input-datetime-picker').value;
+                const mode = document.getElementById('datetime-format-select').value;
+                if (val) {
+                    const d = new Date(val);
+                    const formatted = formatDateTimeReference(d, mode);
+                    state.datetimeText = formatted;
+                    document.getElementById('input-datetime-text').value = formatted;
+                    if (state.appMode === 'editor') renderCanvas();
+                }
+            };
+            document.getElementById('input-datetime-picker').addEventListener('change', syncDatePicker);
+            document.getElementById('datetime-format-select').addEventListener('change', syncDatePicker);
+
+            document.getElementById('btn-now-datetime').addEventListener('click', () => {
+                const now = new Date();
+                const pad = n => String(n).padStart(2, '0');
+                const localIso = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+                document.getElementById('input-datetime-picker').value = localIso;
+                syncDatePicker();
+            });
+
+            document.getElementById('input-datetime-text').addEventListener('input', (e) => {
+                state.datetimeText = e.target.value;
+                if (state.appMode === 'editor') renderCanvas();
+            });
+
+            document.getElementById('input-lat').addEventListener('input', (e) => {
+                state.lat = e.target.value;
+                scheduleRender(250);
+            });
+            document.getElementById('input-lng').addEventListener('input', (e) => {
+                state.lng = e.target.value;
+                scheduleRender(250);
+            });
+
+            document.getElementById('btn-get-gps').addEventListener('click', () => {
+                if (!navigator.geolocation) {
+                    showToast('Browser tidak mendukung Geolocation.', 'error');
+                    return;
+                }
+                showToast('Mengambil lokasi GPS perangkat...', 'info');
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        state.lat = String(pos.coords.latitude);
+                        state.lng = String(pos.coords.longitude);
+                        document.getElementById('input-lat').value = state.lat;
+                        document.getElementById('input-lng').value = state.lng;
+                        scheduleRender(0);
+                        showToast('Koordinat GPS diperbarui!', 'success');
+                    },
+                    () => showToast('Izin lokasi ditolak atau GPS tidak tersedia.', 'warning'),
+                    { enableHighAccuracy: true, timeout: 8000 }
+                );
+            });
+
+            document.getElementById('btn-reverse-geocode').addEventListener('click', () => autoFillAddressFromCoords(false));
+
+            document.getElementById('input-street').addEventListener('input', (e) => { state.street = e.target.value; if (state.appMode === 'editor') renderCanvas(); });
+            document.getElementById('input-village').addEventListener('input', (e) => { state.village = e.target.value; if (state.appMode === 'editor') renderCanvas(); });
+            document.getElementById('input-district').addEventListener('input', (e) => { state.district = e.target.value; if (state.appMode === 'editor') renderCanvas(); });
+            document.getElementById('input-city').addEventListener('input', (e) => { state.city = e.target.value; if (state.appMode === 'editor') renderCanvas(); });
+            document.getElementById('input-province').addEventListener('input', (e) => { state.province = e.target.value; if (state.appMode === 'editor') renderCanvas(); });
+
+            document.getElementById('toggle-datetime').addEventListener('change', (e) => { state.showDatetime = e.target.checked; if (state.appMode === 'editor') renderCanvas(); });
+            document.getElementById('toggle-coords').addEventListener('change', (e) => { state.showCoords = e.target.checked; if (state.appMode === 'editor') renderCanvas(); });
+
+            // Tab 2: Pengaturan Mini-Map Esri QGIS
+            document.getElementById('toggle-minimap').addEventListener('change', (e) => { state.showMiniMap = e.target.checked; scheduleRender(0); });
+            document.getElementById('toggle-map-flush').addEventListener('change', (e) => { state.mapFlushCorner = e.target.checked; scheduleRender(0); });
+            document.getElementById('toggle-map-pin').addEventListener('change', (e) => { state.showMapPin = e.target.checked; scheduleRender(0); });
+            document.getElementById('toggle-map-google').addEventListener('change', (e) => { state.showMapGoogle = e.target.checked; scheduleRender(0); });
+            document.getElementById('map-corner-label').addEventListener('change', (e) => { state.mapCornerLabel = e.target.value; scheduleRender(0); });
+
+            document.querySelectorAll('.map-mode-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.map-mode-btn').forEach(b => {
+                        b.className = 'map-mode-btn p-3 rounded-xl border border-slate-700 bg-slate-950 hover:border-slate-600 text-left transition';
+                    });
+                    btn.className = 'map-mode-btn p-3 rounded-xl border-2 border-blue-500 bg-blue-500/10 text-left transition';
+                    state.mapMode = btn.dataset.mapmode;
+                    scheduleRender(0);
+                });
+            });
+
+            document.getElementById('minimap-file-input').addEventListener('change', (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+                document.getElementById('custom-map-filename').textContent = file.name;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        state.customMapImage = img;
+                        state.mapMode = 'custom';
+                        document.querySelectorAll('.map-mode-btn').forEach(b => {
+                            b.className = b.dataset.mapmode === 'custom'
+                                ? 'map-mode-btn p-3 rounded-xl border-2 border-blue-500 bg-blue-500/10 text-left transition'
+                                : 'map-mode-btn p-3 rounded-xl border border-slate-700 bg-slate-950 hover:border-slate-600 text-left transition';
+                        });
+                        scheduleRender(0);
+                        showToast('Gambar mini-map kustom berhasil diterapkan!', 'success');
+                    };
+                    img.src = ev.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+
+            document.getElementById('map-tile-style').addEventListener('change', (e) => {
+                state.mapTileStyle = e.target.value;
+                scheduleRender(0);
+            });
+
+            document.getElementById('input-map-zoom').addEventListener('input', (e) => {
+                state.mapZoom = parseInt(e.target.value, 10);
+                document.getElementById('map-zoom-val').textContent = state.mapZoom;
+                scheduleRender(120);
+            });
+
+            document.getElementById('input-map-size').addEventListener('input', (e) => {
+                const val = parseInt(e.target.value, 10);
+                state.mapSizeScale = val / 100;
+                document.getElementById('map-size-val').textContent = `${val}%`;
+                scheduleRender(0);
+            });
+
+            // Tab 3: Pengaturan Tampilan Teks
+            document.querySelectorAll('.layout-preset-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.layout-preset-btn').forEach(b => {
+                        b.className = 'layout-preset-btn p-3 rounded-xl border border-slate-700 bg-slate-950 hover:border-slate-600 text-left transition';
+                    });
+                    btn.className = 'layout-preset-btn p-3 rounded-xl border-2 border-blue-500 bg-blue-500/10 text-left transition';
+                    state.layoutPreset = btn.dataset.layout;
+                    if (state.appMode === 'editor') renderCanvas();
+                });
+            });
+
+            document.getElementById('input-font-size').addEventListener('input', (e) => {
+                const val = parseInt(e.target.value, 10);
+                state.fontSizeScale = val / 100;
+                document.getElementById('font-size-val').textContent = `${val}%`;
+                if (state.appMode === 'editor') renderCanvas();
+            });
+
+            document.getElementById('input-margin').addEventListener('input', (e) => {
+                const val = parseInt(e.target.value, 10);
+                state.marginRatio = val / 1000;
+                document.getElementById('margin-val').textContent = `${(val / 10).toFixed(1)}%`;
+                if (state.appMode === 'editor') renderCanvas();
+            });
+
+            document.getElementById('input-outline').addEventListener('input', (e) => {
+                const val = parseInt(e.target.value, 10);
+                state.outlineStrength = val / 100;
+                const label = val === 0 ? 'Mati' : val < 35 ? 'Tipis' : val < 70 ? 'Sedang' : 'Tebal';
+                document.getElementById('outline-val').textContent = label;
+                if (state.appMode === 'editor') renderCanvas();
+            });
+
+            document.querySelectorAll('.color-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.textColor = btn.dataset.color;
+                    document.getElementById('input-text-color').value = state.textColor;
+                    if (state.appMode === 'editor') renderCanvas();
+                });
+            });
+
+            document.getElementById('input-text-color').addEventListener('input', (e) => {
+                state.textColor = e.target.value;
+                if (state.appMode === 'editor') renderCanvas();
+            });
+
+            document.getElementById('input-font-family').addEventListener('change', (e) => {
+                state.fontFamily = e.target.value;
+                if (state.appMode === 'editor') renderCanvas();
+            });
+
+            document.getElementById('input-text-position').addEventListener('change', (e) => {
+                state.textPosition = e.target.value;
+                if (state.appMode === 'editor') renderCanvas();
+            });
+
+            // Tombol Download Full Resolution
+            document.getElementById('btn-download').addEventListener('click', () => {
+                if (!canvas.width || !canvas.height) return;
+                const format = document.getElementById('export-format').value;
+                const ext = format === 'image/png' ? 'png' : 'jpg';
+                const quality = format === 'image/jpeg' ? 0.96 : 1.0;
+
+                try {
+                    const dataUrl = canvas.toDataURL(format, quality);
+                    const link = document.createElement('a');
+                    link.download = `${state.fileName}.${ext}`;
+                    link.href = dataUrl;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    showToast(`Foto berhasil diunduh (${canvas.width}×${canvas.height} px)!`, 'success');
+                } catch (err) {
+                    showToast('Gagal mengekspor gambar. Pastikan gambar peta tidak terblokir CORS.', 'error');
+                }
+            });
+        }
+
+        // Jalankan Aplikasi saat DOM Siap
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('input-datetime-picker').value = '2026-11-19T09:00:11';
+            bindEvents();
+            createDefaultSampleImage();
+        });
+    </script>
+</body>
+</html>
